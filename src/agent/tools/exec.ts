@@ -36,7 +36,13 @@ export function interruptCurrentExec(): boolean {
   return false;
 }
 
-function isProgressLine(line: string): boolean {
+// Strip ANSI escape codes (colors, bold, etc.) — tools like rustscan ignore TERM=dumb
+function stripAnsi(str: string): string {
+  return str.replace(/\x1b\[[0-9;]*m/g, '');
+}
+
+function isProgressLine(raw: string): boolean {
+  const line = stripAnsi(raw);
   if (!line.trim()) return true;
   // ffuf progress
   if (/:: Progress:/.test(line)) return true;
@@ -48,7 +54,8 @@ function isProgressLine(line: string): boolean {
   if (/^Completed\s/.test(line)) return true;
   if (/^Initiating\s/.test(line)) return true;
   if (/^NSE:\s/.test(line)) return true;
-  if (/^Scanning\s\d+\sservices/.test(line)) return true;
+  if (/^Scanning\s/.test(line) && !/^Scanning\s\d+\.\d+/.test(line)) return true;
+  if (/^Discovered open port/.test(line)) return true;
   if (/^Scanned at\s/.test(line)) return true;
   if (/^Read data files from:/.test(line)) return true;
   if (/^Service detection performed/.test(line)) return true;
@@ -61,6 +68,7 @@ function isProgressLine(line: string): boolean {
   if (/^\s*:.*:$/.test(line)) return true;
   if (/^The Modern Day/.test(line)) return true;
   if (/^RustScan:/.test(line)) return true;
+  if (/^Scanning ports faster/.test(line)) return true;
   if (/^\[~\]\s/.test(line)) return true;
   if (/^\[>\]\sRunning script/.test(line)) return true;
   if (/^Depending on the complexity/.test(line)) return true;
@@ -123,7 +131,7 @@ export async function executeExec(
       for (let line of lines) {
         const crIdx = line.lastIndexOf('\r');
         if (crIdx !== -1) line = line.substring(crIdx + 1);
-        if (!isProgressLine(line)) log.toolOutput(line);
+        if (!isProgressLine(line)) log.toolOutput(stripAnsi(line));
       }
     });
 
@@ -136,7 +144,7 @@ export async function executeExec(
       for (let line of lines) {
         const crIdx = line.lastIndexOf('\r');
         if (crIdx !== -1) line = line.substring(crIdx + 1);
-        if (!isProgressLine(line)) log.toolOutput(line);
+        if (!isProgressLine(line)) log.toolOutput(stripAnsi(line));
       }
     });
 
@@ -150,13 +158,13 @@ export async function executeExec(
         let line = stdoutLineBuf;
         const crIdx = line.lastIndexOf('\r');
         if (crIdx !== -1) line = line.substring(crIdx + 1);
-        if (!isProgressLine(line)) log.toolOutput(line);
+        if (!isProgressLine(line)) log.toolOutput(stripAnsi(line));
       }
       if (stderrLineBuf) {
         let line = stderrLineBuf;
         const crIdx = line.lastIndexOf('\r');
         if (crIdx !== -1) line = line.substring(crIdx + 1);
-        if (!isProgressLine(line)) log.toolOutput(line);
+        if (!isProgressLine(line)) log.toolOutput(stripAnsi(line));
       }
 
       const elapsed = formatElapsed(Date.now() - startTime);
