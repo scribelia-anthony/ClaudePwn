@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { render, Box, Text, Static, useApp, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
+import { execSync } from 'child_process';
 import { createSession, loadHistory } from '../../session/manager.js';
 import { addHost } from '../../utils/hosts.js';
 import { AgentLoop } from '../../agent/loop.js';
@@ -59,9 +60,10 @@ interface PromptProps {
   agent: AgentLoop;
   historyLen: number;
   boxDir: string;
+  hostUp: boolean;
 }
 
-function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
+function Prompt({ box, ip, agent, historyLen, boxDir, hostUp }: PromptProps) {
   const [input, setInput] = useState('');
   const [running, setRunning] = useState(0);
   const [lines, setLines] = useState<OutputLine[]>([]);
@@ -85,6 +87,11 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
     log.ok(`Workspace : ${boxDir}/`);
     if (historyLen > 0) {
       log.ok(`Session précédente chargée (${historyLen} messages)`);
+    }
+    if (hostUp) {
+      log.ok(`Host ${ip} est up`);
+    } else {
+      log.warn(`Host ${ip} ne répond pas au ping — box expirée ou VPN coupé ?`);
     }
     emitLine(chalk.dim('\nTape une instruction. Tab pour compléter, "help" pour l\'aide.'));
     emitLine(chalk.dim('L\'agent travaille en arrière-plan — tu peux taper pendant qu\'il tourne.\n'));
@@ -202,10 +209,20 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
   );
 }
 
+function checkHost(ip: string): boolean {
+  try {
+    execSync(`ping -c 1 -W 2 ${ip}`, { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function startCommand(box: string, ip: string): Promise<void> {
   // Setup session (no output before Ink starts)
   const session = createSession(box, ip);
   addHost(ip, `${box.toLowerCase()}.htb`);
+  const hostUp = checkHost(ip);
   const history = loadHistory(session.boxDir);
   const agent = new AgentLoop(box, ip, session.boxDir, history);
 
@@ -217,6 +234,7 @@ export async function startCommand(box: string, ip: string): Promise<void> {
       agent={agent}
       historyLen={history.length}
       boxDir={session.boxDir}
+      hostUp={hostUp}
     />,
     { exitOnCtrlC: false },
   );
