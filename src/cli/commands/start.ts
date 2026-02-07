@@ -52,6 +52,22 @@ export async function startCommand(box: string, ip: string): Promise<void> {
       process.exit(0);
     }
 
+    // Local commands — no AI call
+    if (input === 'help' || input === '?') {
+      console.log(chalk.bold('\n  Commandes REPL :\n'));
+      console.log(chalk.white('  help, ?         ') + chalk.dim('Affiche cette aide'));
+      console.log(chalk.white('  exit, quit      ') + chalk.dim('Quitte et sauvegarde la session'));
+      console.log(chalk.white('  /ask            ') + chalk.dim('Demande une analyse détaillée à l\'IA'));
+      console.log(chalk.bold('\n  Tout le reste est envoyé à l\'agent IA.\n'));
+      console.log(chalk.dim('  Exemples :'));
+      console.log(chalk.dim('    scan la box'));
+      console.log(chalk.dim('    enum web'));
+      console.log(chalk.dim('    cherche un exploit pour Apache 2.4.18'));
+      console.log(chalk.dim('    privesc\n'));
+      rl.prompt();
+      return;
+    }
+
     try {
       // Pause readline while agent is running
       rl.pause();

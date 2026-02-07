@@ -67,11 +67,87 @@ echo -e "${YELLOW}[*] Puis 'claudepwn start <box> <ip>' pour commencer${NC}\n"
 
 # Check offensive tools
 echo -e "${YELLOW}[*] Vérification des outils offensifs...${NC}"
+MISSING=()
 for tool in nmap ffuf gobuster nikto whatweb searchsploit enum4linux smbclient hydra john hashcat sqlmap msfconsole; do
     if command -v "$tool" &>/dev/null; then
         echo -e "  ${GREEN}✓ $tool${NC}"
     else
         echo -e "  ${RED}✗ $tool${NC}"
+        MISSING+=("$tool")
     fi
 done
 echo ""
+
+# Propose installation of missing tools
+if [ ${#MISSING[@]} -gt 0 ]; then
+    echo -e "${YELLOW}[*] Outils manquants : ${MISSING[*]}${NC}"
+
+    # Detect package manager
+    if command -v brew &>/dev/null; then
+        PKG_MGR="brew"
+    elif command -v apt &>/dev/null; then
+        PKG_MGR="apt"
+    elif command -v pacman &>/dev/null; then
+        PKG_MGR="pacman"
+    else
+        PKG_MGR=""
+    fi
+
+    if [ -n "$PKG_MGR" ]; then
+        echo -ne "${YELLOW}[?] Installer les outils manquants avec $PKG_MGR ? (y/N) ${NC}"
+        read -r INSTALL_TOOLS
+        if [[ "$INSTALL_TOOLS" =~ ^[yYoO] ]]; then
+            for tool in "${MISSING[@]}"; do
+                # Map tool names to package names
+                case "$tool" in
+                    searchsploit)
+                        if [ "$PKG_MGR" = "brew" ]; then
+                            pkg="exploitdb"
+                        else
+                            pkg="exploitdb"
+                        fi
+                        ;;
+                    smbclient)
+                        if [ "$PKG_MGR" = "apt" ]; then
+                            pkg="smbclient"
+                        elif [ "$PKG_MGR" = "brew" ]; then
+                            pkg="samba"
+                        else
+                            pkg="smbclient"
+                        fi
+                        ;;
+                    msfconsole)
+                        echo -e "  ${YELLOW}⚠ Metasploit : installez via https://docs.metasploit.com/docs/using-metasploit/getting-started/nightly-installers.html${NC}"
+                        continue
+                        ;;
+                    john)
+                        pkg="john-the-ripper"
+                        [ "$PKG_MGR" = "apt" ] && pkg="john"
+                        ;;
+                    enum4linux)
+                        if [ "$PKG_MGR" = "brew" ]; then
+                            echo -e "  ${YELLOW}⚠ enum4linux : pip install enum4linux-ng${NC}"
+                            continue
+                        fi
+                        pkg="enum4linux"
+                        ;;
+                    *)
+                        pkg="$tool"
+                        ;;
+                esac
+
+                echo -e "  ${YELLOW}[*] Installation de $tool ($pkg)...${NC}"
+                if [ "$PKG_MGR" = "brew" ]; then
+                    brew install "$pkg" 2>/dev/null || echo -e "  ${RED}✗ Échec: $tool${NC}"
+                elif [ "$PKG_MGR" = "apt" ]; then
+                    sudo apt install -y "$pkg" 2>/dev/null || echo -e "  ${RED}✗ Échec: $tool${NC}"
+                elif [ "$PKG_MGR" = "pacman" ]; then
+                    sudo pacman -S --noconfirm "$pkg" 2>/dev/null || echo -e "  ${RED}✗ Échec: $tool${NC}"
+                fi
+            done
+            echo ""
+        fi
+    else
+        echo -e "${YELLOW}[*] Aucun gestionnaire de paquets détecté. Installez-les manuellement.${NC}\n"
+    fi
+fi
