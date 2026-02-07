@@ -4,7 +4,7 @@ import { log } from '../../utils/logger.js';
 export async function loginCommand(): Promise<void> {
   if (isAuthenticated()) {
     log.ok('Déjà authentifié.');
-    return;
+    process.exit(0);
   }
 
   await login();

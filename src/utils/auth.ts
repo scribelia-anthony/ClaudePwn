@@ -13,12 +13,6 @@ import {
   type OAuthTokens,
 } from '../config/index.js';
 import { log } from './logger.js';
-import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'fs';
-import { homedir } from 'os';
-import { join } from 'path';
-
-const API_KEY_FILE = join(homedir(), '.claudepwn', 'api-key');
-const CREATE_KEY_URL = 'https://api.anthropic.com/api/oauth/claude_cli/create_api_key';
 
 // --- PKCE ---
 
@@ -43,12 +37,7 @@ function waitForCallback(port: number, expectedState: string): Promise<{ code: s
 
     const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const url = new URL(req.url || '/', `http://localhost:${port}`);
-
-      if (url.pathname !== '/callback') {
-        res.writeHead(404);
-        res.end('Not found');
-        return;
-      }
+      if (url.pathname !== '/callback') { res.writeHead(404); res.end(); return; }
 
       const code = url.searchParams.get('code');
       const state = url.searchParams.get('state');
@@ -63,22 +52,13 @@ function waitForCallback(port: number, expectedState: string): Promise<{ code: s
       clearTimeout(timeout);
       server.close();
 
-      if (!code) {
-        reject(new Error('Pas de code dans le callback'));
-        return;
-      }
-      if (state !== expectedState) {
-        reject(new Error('State mismatch'));
-        return;
-      }
+      if (!code) { reject(new Error('Pas de code dans le callback')); return; }
+      if (state !== expectedState) { reject(new Error('State mismatch')); return; }
       resolve({ code, state: state || '' });
     });
 
     server.listen(port, 'localhost');
-    server.on('error', (err) => {
-      clearTimeout(timeout);
-      reject(new Error(`Callback server: ${err.message}`));
-    });
+    server.on('error', (err) => { clearTimeout(timeout); reject(err); });
   });
 }
 
@@ -88,17 +68,16 @@ function findFreePort(): Promise<number> {
     server.listen(0, 'localhost', () => {
       const addr = server.address();
       if (addr && typeof addr === 'object') {
-        const port = addr.port;
-        server.close(() => resolve(port));
+        server.close(() => resolve(addr.port));
       } else {
-        server.close(() => reject(new Error('Could not find free port')));
+        server.close(() => reject(new Error('No port')));
       }
     });
     server.on('error', reject);
   });
 }
 
-// --- OAuth token exchange ---
+// --- Token exchange & refresh ---
 
 async function exchangeCode(code: string, state: string, redirectUri: string, verifier: string): Promise<OAuthTokens> {
   const response = await fetch(OAUTH_TOKEN_URL, {
@@ -106,19 +85,16 @@ async function exchangeCode(code: string, state: string, redirectUri: string, ve
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       grant_type: 'authorization_code',
-      code,
-      state,
+      code, state,
       client_id: OAUTH_CLIENT_ID,
       redirect_uri: redirectUri,
       code_verifier: verifier,
     }),
   });
-
   if (!response.ok) {
     const text = await response.text();
     throw new Error(`Token exchange failed (${response.status}): ${text}`);
   }
-
   const data = await response.json() as { access_token: string; refresh_token: string; expires_in: number };
   return {
     access_token: data.access_token,
@@ -127,56 +103,36 @@ async function exchangeCode(code: string, state: string, redirectUri: string, ve
   };
 }
 
-// --- Create permanent API key from OAuth token ---
+export async function refreshTokens(): Promise<OAuthTokens> {
+  const tokens = loadOAuthTokens();
+  if (!tokens) throw new Error('No tokens to refresh');
 
-async function createApiKey(accessToken: string): Promise<string> {
-  const response = await fetch(CREATE_KEY_URL, {
+  const response = await fetch(OAUTH_TOKEN_URL, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: '{}',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'refresh_token',
+      refresh_token: tokens.refresh_token,
+      client_id: OAUTH_CLIENT_ID,
+    }),
   });
+  if (!response.ok) throw new Error(`Token refresh failed (${response.status})`);
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`API key creation failed (${response.status}): ${text}`);
-  }
-
-  const data = await response.json() as { raw_key: string };
-  return data.raw_key;
-}
-
-// --- Saved API key ---
-
-function saveApiKey(key: string): void {
-  const dir = join(homedir(), '.claudepwn');
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(API_KEY_FILE, key, { mode: 0o600 });
-}
-
-function loadSavedApiKey(): string | null {
-  if (!existsSync(API_KEY_FILE)) return null;
-  try {
-    return readFileSync(API_KEY_FILE, 'utf-8').trim();
-  } catch {
-    return null;
-  }
+  const data = await response.json() as { access_token: string; refresh_token: string; expires_in: number };
+  const newTokens: OAuthTokens = {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token || tokens.refresh_token,
+    expires_at: Date.now() + data.expires_in * 1000,
+  };
+  saveOAuthTokens(newTokens);
+  return newTokens;
 }
 
 // --- Public API ---
 
-/**
- * Full login flow:
- * 1. OAuth PKCE → temporary access token
- * 2. Create permanent API key with that token
- * 3. Save API key to ~/.claudepwn/api-key
- */
-export async function login(): Promise<string> {
+export async function login(): Promise<OAuthTokens> {
   const { verifier, challenge } = generatePKCE();
   const state = generateState();
-
   const port = await findFreePort();
   const redirectUri = `http://localhost:${port}/callback`;
 
@@ -192,37 +148,39 @@ export async function login(): Promise<string> {
     code_challenge_method: 'S256',
   });
 
-  const authUrl = `${OAUTH_AUTHORIZE_URL}?${params}`;
-
   log.info('Ouverture du navigateur...');
-  await open(authUrl);
+  await open(`${OAUTH_AUTHORIZE_URL}?${params}`);
   log.info('En attente de l\'autorisation...');
 
   const { code, state: returnedState } = await callbackPromise;
-
-  log.info('Échange du token...');
-  const oauthTokens = await exchangeCode(code, returnedState, redirectUri, verifier);
-
-  log.info('Création de l\'API key...');
-  const apiKey = await createApiKey(oauthTokens.access_token);
-
-  saveApiKey(apiKey);
-  // Also save OAuth tokens for potential refresh
-  saveOAuthTokens(oauthTokens);
-
-  log.ok('Authentifié ! API key sauvegardée.');
-  return apiKey;
+  const tokens = await exchangeCode(code, returnedState, redirectUri, verifier);
+  saveOAuthTokens(tokens);
+  log.ok('Authentifié !');
+  return tokens;
 }
 
 /**
- * Get a working API key. Priority:
- * 1. ANTHROPIC_API_KEY env var
- * 2. ~/.claudepwn/api-key (from OAuth login)
+ * Get a valid access token (refreshing if needed).
+ * Returns null if API key is set (use that instead).
  */
-export function getEffectiveApiKey(): string | null {
-  return getApiKey() || loadSavedApiKey();
+export async function getValidAccessToken(): Promise<string | null> {
+  // API key takes priority
+  if (getApiKey()) return null;
+
+  let tokens = loadOAuthTokens();
+  if (!tokens) return null;
+
+  // Refresh if expiring in < 5 min
+  if (Date.now() > tokens.expires_at - 300000) {
+    try {
+      tokens = await refreshTokens();
+    } catch {
+      return null;
+    }
+  }
+  return tokens.access_token;
 }
 
 export function isAuthenticated(): boolean {
-  return !!getEffectiveApiKey();
+  return !!(getApiKey() || loadOAuthTokens());
 }

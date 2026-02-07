@@ -67,7 +67,7 @@ export function clearOAuthTokens(): void {
 }
 
 export const OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
-export const OAUTH_SCOPES = 'org:create_api_key user:profile user:inference';
+export const OAUTH_SCOPES = 'user:profile user:inference';
 export const OAUTH_AUTHORIZE_URL = 'https://console.anthropic.com/oauth/authorize';
 export const OAUTH_TOKEN_URL = 'https://console.anthropic.com/v1/oauth/token';
 

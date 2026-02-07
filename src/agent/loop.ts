@@ -1,12 +1,29 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { getConfig } from '../config/index.js';
-import { getEffectiveApiKey, login } from '../utils/auth.js';
+import { getConfig, getApiKey, loadOAuthTokens } from '../config/index.js';
+import { login, getValidAccessToken, refreshTokens } from '../utils/auth.js';
 import { getAllTools, executeTool } from './tools/index.js';
 import { buildSystemPrompt } from './system-prompt.js';
 import { saveHistory } from '../session/manager.js';
 import { log } from '../utils/logger.js';
 
 type Message = Anthropic.MessageParam;
+
+// Headers required by Anthropic when using OAuth bearer tokens
+const OAUTH_DEFAULT_HEADERS: Record<string, string> = {
+  'anthropic-dangerous-direct-browser-access': 'true',
+  'anthropic-beta': 'oauth-2025-04-20',
+  'user-agent': 'claude-cli/2.1.7 (external, cli)',
+};
+
+function makeClient(apiKey?: string, accessToken?: string): Anthropic {
+  if (apiKey) {
+    return new Anthropic({ apiKey });
+  }
+  return new Anthropic({
+    authToken: accessToken,
+    defaultHeaders: OAUTH_DEFAULT_HEADERS,
+  });
+}
 
 export class AgentLoop {
   private client!: Anthropic;
@@ -21,19 +38,26 @@ export class AgentLoop {
     this.ip = ip;
     this.boxDir = boxDir;
     this.messages = history;
-
-    const key = getEffectiveApiKey();
-    if (key) {
-      this.client = new Anthropic({ apiKey: key });
-    }
   }
 
   private async ensureClient(): Promise<void> {
-    if (this.client) return;
+    // 1. Env var API key
+    const envKey = getApiKey();
+    if (envKey) {
+      this.client = makeClient(envKey);
+      return;
+    }
 
-    log.warn('Pas d\'API key. Lancement du login...');
-    const key = await login();
-    this.client = new Anthropic({ apiKey: key });
+    // 2. Existing OAuth token
+    const accessToken = await getValidAccessToken();
+    if (accessToken) {
+      this.client = makeClient(undefined, accessToken);
+      return;
+    }
+
+    // 3. Fresh login
+    const tokens = await login();
+    this.client = makeClient(undefined, tokens.access_token);
   }
 
   async run(userInput: string): Promise<void> {
@@ -57,14 +81,20 @@ export class AgentLoop {
         });
       } catch (err: any) {
         if (err.status === 401) {
-          log.warn('API key invalide, re-login...');
+          // Try refresh first, then full re-login
           try {
-            const key = await login();
-            this.client = new Anthropic({ apiKey: key });
+            const tokens = await refreshTokens();
+            this.client = makeClient(undefined, tokens.access_token);
             continue;
-          } catch (loginErr: any) {
-            log.error(`Login échoué: ${loginErr.message}`);
-            break;
+          } catch {
+            try {
+              const tokens = await login();
+              this.client = makeClient(undefined, tokens.access_token);
+              continue;
+            } catch (loginErr: any) {
+              log.error(`Login échoué: ${loginErr.message}`);
+              break;
+            }
           }
         }
         log.error(`API error: ${err.message}`);
