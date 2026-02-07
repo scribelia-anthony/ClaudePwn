@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { render, Box, Text, useApp, useInput } from 'ink';
+import { render, Box, Text, Static, useApp, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
 import { createSession, loadHistory } from '../../session/manager.js';
@@ -7,6 +7,8 @@ import { addHost } from '../../utils/hosts.js';
 import { AgentLoop } from '../../agent/loop.js';
 import { interruptCurrentExec } from '../../agent/tools/exec.js';
 import { log } from '../../utils/logger.js';
+import { outputEmitter, type OutputLine } from '../../utils/output.js';
+import { emitLine } from '../../utils/output.js';
 
 // Tab completions
 const COMPLETIONS = [
@@ -31,11 +33,21 @@ interface PromptProps {
 function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
   const [input, setInput] = useState('');
   const [running, setRunning] = useState(0);
+  const [lines, setLines] = useState<OutputLine[]>([]);
   const runningRef = useRef(0);
   const queueRef = useRef<string[]>([]);
   const { exit } = useApp();
 
-  // Show banner and setup info AFTER Ink starts (so it manages the output)
+  // Listen for output events and add to Static items
+  useEffect(() => {
+    const handler = (line: OutputLine) => {
+      setLines(prev => [...prev, line]);
+    };
+    outputEmitter.on('line', handler);
+    return () => { outputEmitter.off('line', handler); };
+  }, []);
+
+  // Show banner on mount
   useEffect(() => {
     log.banner();
     log.info(`Démarrage de la session : ${box} (${ip})`);
@@ -43,8 +55,8 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
     if (historyLen > 0) {
       log.ok(`Session précédente chargée (${historyLen} messages)`);
     }
-    console.log(chalk.dim('\nTape une instruction. Tab pour compléter, "help" pour l\'aide.'));
-    console.log(chalk.dim('L\'agent travaille en arrière-plan — tu peux taper pendant qu\'il tourne.\n'));
+    emitLine(chalk.dim('\nTape une instruction. Tab pour compléter, "help" pour l\'aide.'));
+    emitLine(chalk.dim('L\'agent travaille en arrière-plan — tu peux taper pendant qu\'il tourne.\n'));
   }, []);
 
   const runTask = useCallback(async (text: string) => {
@@ -65,7 +77,7 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
         exit();
         return;
       }
-      console.log(chalk.dim(`\n[queue] → ${next}`));
+      emitLine(chalk.dim(`\n[queue] → ${next}`));
       runTask(next);
       return;
     }
@@ -79,7 +91,7 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
     if (!trimmed) return;
 
     // Echo the command
-    console.log(chalk.red(`claudepwn/${box}> `) + trimmed);
+    emitLine(chalk.red(`claudepwn/${box}> `) + trimmed);
 
     if (trimmed === 'exit' || trimmed === 'quit') {
       if (runningRef.current > 0) {
@@ -95,18 +107,18 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
     }
 
     if (trimmed === 'help' || trimmed === '?') {
-      console.log(chalk.bold('\n  Commandes locales :\n'));
-      console.log(chalk.white('  help, ?         ') + chalk.dim('Cette aide'));
-      console.log(chalk.white('  status          ') + chalk.dim('Nombre de tâches en cours'));
-      console.log(chalk.white('  exit, quit      ') + chalk.dim('Quitter (session sauvegardée)'));
-      console.log(chalk.bold('\n  Raccourcis IA :\n'));
-      console.log(chalk.white('  scan la box     ') + chalk.dim('Recon complète (nmap → searchsploit → enum)'));
-      console.log(chalk.white('  enum web        ') + chalk.dim('Énumération web (whatweb, ffuf, nikto)'));
-      console.log(chalk.white('  enum smb        ') + chalk.dim('Énumération SMB (smbclient, enum4linux)'));
-      console.log(chalk.white('  privesc         ') + chalk.dim('Escalade de privilèges (linpeas, enumération)'));
-      console.log(chalk.white('  /ask            ') + chalk.dim('Analyse détaillée + prochaines étapes'));
-      console.log(chalk.bold('\n  L\'agent tourne en fond — tu peux taper pendant qu\'il travaille.'));
-      console.log(chalk.dim('  Tab = autocomplétion, Ctrl+C = interrompre scan en cours.\n'));
+      emitLine(chalk.bold('\n  Commandes locales :\n'));
+      emitLine(chalk.white('  help, ?         ') + chalk.dim('Cette aide'));
+      emitLine(chalk.white('  status          ') + chalk.dim('Nombre de tâches en cours'));
+      emitLine(chalk.white('  exit, quit      ') + chalk.dim('Quitter (session sauvegardée)'));
+      emitLine(chalk.bold('\n  Raccourcis IA :\n'));
+      emitLine(chalk.white('  scan la box     ') + chalk.dim('Recon complète (nmap → searchsploit → enum)'));
+      emitLine(chalk.white('  enum web        ') + chalk.dim('Énumération web (whatweb, ffuf, nikto)'));
+      emitLine(chalk.white('  enum smb        ') + chalk.dim('Énumération SMB (smbclient, enum4linux)'));
+      emitLine(chalk.white('  privesc         ') + chalk.dim('Escalade de privilèges (linpeas, enumération)'));
+      emitLine(chalk.white('  /ask            ') + chalk.dim('Analyse détaillée + prochaines étapes'));
+      emitLine(chalk.bold('\n  L\'agent tourne en fond — tu peux taper pendant qu\'il travaille.'));
+      emitLine(chalk.dim('  Tab = autocomplétion, Ctrl+C = interrompre scan en cours.\n'));
       return;
     }
 
@@ -132,7 +144,7 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
   useInput((ch, key) => {
     if (key.ctrl && ch === 'c') {
       if (runningRef.current > 0 && interruptCurrentExec()) {
-        console.log(chalk.yellow('\n[!] Commande interrompue'));
+        log.warn('Commande interrompue');
         return;
       }
       log.info('Session sauvegardée. À plus.');
@@ -143,29 +155,36 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
       if (matches.length === 1) {
         setInput(matches[0]);
       } else if (matches.length > 1) {
-        console.log(chalk.dim(matches.join('  ')));
+        emitLine(chalk.dim(matches.join('  ')));
       }
     }
   });
 
   return (
-    <Box>
-      <Text color="red">{`claudepwn/${box}`}</Text>
-      {running > 0 && <Text dimColor>{` [${running} running]`}</Text>}
-      <Text color="red">{`> `}</Text>
-      <TextInput value={input} onChange={setInput} onSubmit={handleSubmit} />
-    </Box>
+    <>
+      <Static items={lines}>
+        {(line) => (
+          <Text key={line.id}>{line.text}</Text>
+        )}
+      </Static>
+      <Box>
+        <Text color="red">{`claudepwn/${box}`}</Text>
+        {running > 0 && <Text dimColor>{` [${running} running]`}</Text>}
+        <Text color="red">{`> `}</Text>
+        <TextInput value={input} onChange={setInput} onSubmit={handleSubmit} />
+      </Box>
+    </>
   );
 }
 
 export async function startCommand(box: string, ip: string): Promise<void> {
-  // Setup session (no console output before Ink starts)
+  // Setup session (no output before Ink starts)
   const session = createSession(box, ip);
   addHost(ip, `${box.toLowerCase()}.htb`);
   const history = loadHistory(session.boxDir);
   const agent = new AgentLoop(box, ip, session.boxDir, history);
 
-  // Start Ink — ALL output goes through Ink from here
+  // Start Ink — ALL output goes through <Static> from here
   const { waitUntilExit } = render(
     <Prompt
       box={box}

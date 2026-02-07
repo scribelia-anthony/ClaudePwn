@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'child_process';
 import { appendFileSync } from 'fs';
 import { join } from 'path';
 import { log } from '../../utils/logger.js';
+import { emitLine } from '../../utils/output.js';
 import { getConfig } from '../../config/index.js';
 import type Anthropic from '@anthropic-ai/sdk';
 
@@ -76,7 +77,7 @@ export async function executeExec(
       proc.kill('SIGKILL');
     }, Math.min(timeoutMs, config.execTimeout));
 
-    // Stream output line-by-line via console.log — Ink renders above input
+    // Stream output line-by-line via emitLine — Ink <Static> renders immediately
     let stdoutLineBuf = '';
     let stderrLineBuf = '';
 
@@ -85,9 +86,9 @@ export async function executeExec(
       stdout += text;
       stdoutLineBuf += text;
       const lines = stdoutLineBuf.split('\n');
-      stdoutLineBuf = lines.pop()!; // keep incomplete last line
+      stdoutLineBuf = lines.pop()!;
       for (const line of lines) {
-        console.log(line);
+        emitLine(line);
       }
     });
 
@@ -98,7 +99,7 @@ export async function executeExec(
       const lines = stderrLineBuf.split('\n');
       stderrLineBuf = lines.pop()!;
       for (const line of lines) {
-        console.error(line);
+        emitLine(line);
       }
     });
 
@@ -107,8 +108,8 @@ export async function executeExec(
       currentProc = null;
 
       // Flush remaining line buffers
-      if (stdoutLineBuf) console.log(stdoutLineBuf);
-      if (stderrLineBuf) console.error(stderrLineBuf);
+      if (stdoutLineBuf) emitLine(stdoutLineBuf);
+      if (stderrLineBuf) emitLine(stderrLineBuf);
 
       const elapsed = formatElapsed(Date.now() - startTime);
       if (Date.now() - startTime > 3000) {
