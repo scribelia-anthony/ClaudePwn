@@ -41,11 +41,29 @@ function isProgressLine(line: string): boolean {
   // ffuf progress
   if (/:: Progress:/.test(line)) return true;
   if (/\d+\/\d+\]\s*::\s*Job\s*\[/.test(line) && !/\[Status:/.test(line)) return true;
-  // nmap progress
+  // nmap verbose noise
   if (/^Stats:\s/.test(line)) return true;
   if (/^Connect Scan Timing:/.test(line)) return true;
   if (/^Service scan Timing:/.test(line)) return true;
-  if (/^Completed\s.*\d+\.\d+%/.test(line)) return true;
+  if (/^Completed\s/.test(line)) return true;
+  if (/^Initiating\s/.test(line)) return true;
+  if (/^NSE:\s/.test(line)) return true;
+  if (/^Scanning\s\d+\sservices/.test(line)) return true;
+  if (/^Scanned at\s/.test(line)) return true;
+  if (/^Read data files from:/.test(line)) return true;
+  if (/^Service detection performed/.test(line)) return true;
+  // nmap SSH key blobs (long base64 lines)
+  if (/^[|\s]*[A-Za-z0-9+/]{60,}/.test(line)) return true;
+  // nmap reasons column noise
+  if (/\bsyn-ack\b/.test(line) && /^[|\s]/.test(line) && !/^\d/.test(line)) return true;
+  // rustscan banner/noise
+  if (/^[.|\-{}\s\\/'`_]{4,}$/.test(line)) return true;
+  if (/^\s*:.*:$/.test(line)) return true;
+  if (/^The Modern Day/.test(line)) return true;
+  if (/^RustScan:/.test(line)) return true;
+  if (/^\[~\]\s/.test(line)) return true;
+  if (/^\[>\]\sRunning script/.test(line)) return true;
+  if (/^Depending on the complexity/.test(line)) return true;
   // gobuster/feroxbuster progress
   if (/^Progress:.*\d+\/\d+/.test(line) && !/Found:/.test(line)) return true;
   return false;
