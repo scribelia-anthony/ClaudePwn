@@ -127,6 +127,7 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
     if (runningRef.current > 0) {
       // Inject into ongoing conversation — agent sees it at next API call
       agent.injectMessage(trimmed);
+      log.info('Reçu — l\'agent verra ton message après la commande en cours.');
     } else {
       runTask(trimmed);
     }
