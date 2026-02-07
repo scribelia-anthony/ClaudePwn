@@ -56,10 +56,27 @@ pnpm install
 echo -e "${YELLOW}[*] Build...${NC}"
 pnpm build
 
-# Symlink
+# Symlink — prefer user-writable path to avoid sudo
 echo -e "${YELLOW}[*] Création du symlink...${NC}"
-sudo ln -sf "$INSTALL_DIR/dist/index.js" /usr/local/bin/claudepwn
-sudo chmod +x /usr/local/bin/claudepwn
+USER_BIN="$HOME/.local/bin"
+mkdir -p "$USER_BIN"
+ln -sf "$INSTALL_DIR/dist/index.js" "$USER_BIN/claudepwn"
+chmod +x "$USER_BIN/claudepwn"
+
+# Ensure ~/.local/bin is in PATH
+if ! echo "$PATH" | grep -q "$USER_BIN"; then
+    SHELL_RC=""
+    if [ -f "$HOME/.zshrc" ]; then
+        SHELL_RC="$HOME/.zshrc"
+    elif [ -f "$HOME/.bashrc" ]; then
+        SHELL_RC="$HOME/.bashrc"
+    fi
+    if [ -n "$SHELL_RC" ] && ! grep -q '.local/bin' "$SHELL_RC"; then
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_RC"
+        echo -e "${YELLOW}[*] Ajouté ~/.local/bin au PATH dans $(basename "$SHELL_RC")${NC}"
+    fi
+    export PATH="$USER_BIN:$PATH"
+fi
 
 echo -e "\n${GREEN}[+] ClaudePwn installé !${NC}"
 echo -e "${YELLOW}[*] Lancez 'claudepwn login' pour vous authentifier${NC}"
