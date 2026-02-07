@@ -76,7 +76,7 @@ Wordlist web par défaut : ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-
   : `rustscan non disponible — utilise nmap en 2 phases : nmap -p- --min-rate 5000 --max-retries 2 -T4 -oN ${boxDir}/scans/nmap-ports.txt ${ip} puis nmap -sC -sV -p <ports> -oN ${boxDir}/scans/nmap-detail.txt ${ip}`}
 **Web** : curl -sI http://${ip} (headers) + curl -s http://${ip} (body/commentaires HTML) + ffuf -u http://${ip}/FUZZ -w ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt -o ${boxDir}/scans/ffuf.json
 **SMB** : smbclient -L //${ip}/ -N, enum4linux -a ${ip}
-**Exploit** : searchsploit, msfconsole, sqlmap, hydra
+**Exploit** : searchsploit (TOUJOURS un appel séparé par service : \`searchsploit OpenSSH 7.2p2; searchsploit Apache 2.4.18\` — JAMAIS \`searchsploit "terme1" "terme2"\` car ça fait un AND et retourne rien), msfconsole, sqlmap, hydra
 **Post-Exploit** : linpeas.sh, winpeas.exe, pspy64, bloodhound-python
 **Impacket** : psexec, smbexec, wmiexec, secretsdump, getTGT, getNPUsers
 **Transfert** : python3 -m http.server, curl, nc, chisel, ligolo-ng
