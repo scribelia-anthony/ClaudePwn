@@ -29,24 +29,26 @@ function StatusLine() {
   const [status, setStatusState] = useState<string | null>(null);
   const [frame, setFrame] = useState(0);
 
+  // Listen for status changes
   useEffect(() => {
     const handler = (text: string | null) => setStatusState(text);
     statusEmitter.on('change', handler);
     return () => { statusEmitter.off('change', handler); };
   }, []);
 
+  // Spinner animation — always runs, no dependency on status text
   useEffect(() => {
-    if (!status) return;
     const timer = setInterval(() => setFrame(f => (f + 1) % SPINNER_FRAMES.length), 80);
     return () => clearInterval(timer);
-  }, [status]);
+  }, []);
 
-  if (!status) return null;
+  // Always render the Box (never return null — avoids Ink layout remount issues)
+  if (!status) return <Box height={0} />;
   return (
     <Box>
       <Text color="green" bold>■</Text>
-      <Text dimColor> {SPINNER_FRAMES[frame]} </Text>
-      <Text dimColor>{status}</Text>
+      <Text color="gray"> {SPINNER_FRAMES[frame]} </Text>
+      <Text color="gray">{status}</Text>
     </Box>
   );
 }
