@@ -67,7 +67,6 @@ export async function executeExec(
   const timeoutMs = (timeout || 300) * 1000;
   const config = getConfig();
 
-  log.command(command);
   setStatus(`Exécution: ${command.length > 60 ? command.slice(0, 57) + '...' : command}`);
 
   // Log to log.md
