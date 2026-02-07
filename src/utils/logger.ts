@@ -26,18 +26,18 @@ export const log = {
   },
 
   tool(name: string, input: Record<string, unknown>) {
-    const summary = name === 'exec_command'
+    const summary = name === 'Bash'
       ? (input.command as string)
-      : name === 'read_file'
-        ? `read ${input.path}`
-        : name === 'write_file'
-          ? `write ${input.path}`
-          : name === 'http_request'
+      : name === 'Read'
+        ? `${input.file_path}`
+        : name === 'Write'
+          ? `${input.file_path}`
+          : name === 'WebFetch'
             ? `${input.method || 'GET'} ${input.url}`
-            : name === 'ask_user'
-              ? `asking: ${input.question}`
+            : name === 'AskUserQuestion'
+              ? `${input.question}`
               : JSON.stringify(input).slice(0, 80);
-    console.log(chalk.magenta(`[tool:${name}]`), chalk.dim(summary));
+    console.log(chalk.magenta(`[${name}]`), chalk.dim(summary));
   },
 
   assistant(text: string) {

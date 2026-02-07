@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { randomUUID } from 'crypto';
+import chalk from 'chalk';
 import { getConfig, getApiKey } from '../config/index.js';
 import { login, getValidAccessToken, refreshTokens } from '../utils/auth.js';
 import { getAllTools, executeTool } from './tools/index.js';
@@ -167,12 +168,25 @@ export class AgentLoop {
     const system = buildSystemPrompt(this.box, this.ip, this.boxDir);
     const tools = getAllTools();
 
+    let turn = 0;
     while (true) {
       let response: Anthropic.Message;
 
+      // Show thinking status
+      const thinkMsg = turn === 0 ? 'Réflexion...' : 'Analyse des résultats...';
+      const spinner = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'];
+      let spinIdx = 0;
+      const thinkTimer = setInterval(() => {
+        process.stdout.write(chalk.dim(`\r  ${spinner[spinIdx++ % spinner.length]} ${thinkMsg}`));
+      }, 100);
+
       try {
         response = await this.createMessage(system, tools);
+        clearInterval(thinkTimer);
+        process.stdout.write(`\r${' '.repeat(60)}\r`);
       } catch (err: any) {
+        clearInterval(thinkTimer);
+        process.stdout.write(`\r${' '.repeat(60)}\r`);
         if (err.status === 401 || err.status === 403) {
           try {
             const tokens = await refreshTokens();
@@ -215,18 +229,20 @@ export class AgentLoop {
         break;
       }
 
-      const toolResults: Anthropic.ToolResultBlockParam[] = [];
-
-      for (const tool of toolUseBlocks) {
-        const result = await executeTool(tool.name, tool.input, this.boxDir);
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: tool.id,
-          content: result,
-        });
-      }
+      // Execute tools in parallel when multiple are requested
+      const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
+        toolUseBlocks.map(async (tool) => {
+          const result = await executeTool(tool.name, tool.input, this.boxDir);
+          return {
+            type: 'tool_result' as const,
+            tool_use_id: tool.id,
+            content: result,
+          };
+        }),
+      );
 
       this.messages.push({ role: 'user', content: toolResults });
+      turn++;
     }
 
     saveHistory(this.boxDir, this.messages);

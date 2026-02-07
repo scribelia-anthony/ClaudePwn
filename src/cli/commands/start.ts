@@ -4,6 +4,7 @@ import { createSession, loadHistory } from '../../session/manager.js';
 import { addHost } from '../../utils/hosts.js';
 import { AgentLoop } from '../../agent/loop.js';
 import { setSharedReadline } from '../../agent/tools/ask-user.js';
+import { interruptCurrentExec } from '../../agent/tools/exec.js';
 import { log } from '../../utils/logger.js';
 
 // Completions for tab — common hacking actions + local commands
@@ -60,6 +61,17 @@ export async function startCommand(box: string, ip: string): Promise<void> {
 
   setSharedReadline(rl);
 
+  // Ctrl+C interrupts running command, second Ctrl+C exits
+  let agentRunning = false;
+  process.on('SIGINT', () => {
+    if (agentRunning && interruptCurrentExec()) {
+      console.log(chalk.yellow('\n[!] Commande interrompue'));
+      return;
+    }
+    log.info('Session sauvegardée. À plus.');
+    process.exit(0);
+  });
+
   console.log(chalk.dim('\nTape une instruction pour l\'agent. Tab pour compléter, "help" pour l\'aide.\n'));
   rl.prompt();
 
@@ -95,10 +107,12 @@ export async function startCommand(box: string, ip: string): Promise<void> {
     }
 
     try {
-      // Pause readline while agent is running
       rl.pause();
+      agentRunning = true;
       await agent.run(input);
+      agentRunning = false;
     } catch (err: any) {
+      agentRunning = false;
       log.error(`Erreur agent: ${err.message}`);
     }
 
