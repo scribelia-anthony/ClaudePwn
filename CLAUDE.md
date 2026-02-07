@@ -1,9 +1,9 @@
-# ClaudePwn — Framework de Hacking Autonome
+# ClaudePwn — Framework de Hacking
 
 ## Projet
 
 Framework TypeScript standalone propulsé par l'API Anthropic.
-Agent loop manuel avec tool_use (exec_command, read_file, write_file, http_request, ask_user).
+Agent loop manuel avec tool_use (Bash, Read, Write, WebFetch, AskUserQuestion).
 
 ## Stack
 

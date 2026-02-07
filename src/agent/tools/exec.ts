@@ -1,9 +1,30 @@
 import { spawn, type ChildProcess } from 'child_process';
+import * as readline from 'readline';
 import { appendFileSync } from 'fs';
 import { join } from 'path';
 import { log } from '../../utils/logger.js';
 import { getConfig } from '../../config/index.js';
 import type Anthropic from '@anthropic-ai/sdk';
+
+// Shared readline instance for safe terminal output
+let sharedRl: readline.Interface | null = null;
+
+export function setSharedReadlineForExec(rl: readline.Interface) {
+  sharedRl = rl;
+}
+
+/**
+ * Write text to stdout without corrupting readline prompt.
+ * Clears current line, writes text, then redraws prompt if needed.
+ */
+function safeWrite(text: string) {
+  if (sharedRl) {
+    // Clear readline prompt line before writing
+    readline.clearLine(process.stdout, 0);
+    readline.cursorTo(process.stdout, 0);
+  }
+  process.stdout.write(text);
+}
 
 export const execTool: Anthropic.Tool = {
   name: 'Bash',
@@ -79,11 +100,13 @@ export async function executeExec(
     proc.stdout.on('data', (data: Buffer) => {
       const text = data.toString();
       stdout += text;
+      safeWrite(text);
     });
 
     proc.stderr.on('data', (data: Buffer) => {
       const text = data.toString();
       stderr += text;
+      safeWrite(text);
     });
 
     proc.on('close', (code) => {

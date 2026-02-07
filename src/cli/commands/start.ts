@@ -4,8 +4,8 @@ import { createSession, loadHistory } from '../../session/manager.js';
 import { addHost } from '../../utils/hosts.js';
 import { AgentLoop } from '../../agent/loop.js';
 import { setSharedReadline } from '../../agent/tools/ask-user.js';
-import { interruptCurrentExec } from '../../agent/tools/exec.js';
-import { log } from '../../utils/logger.js';
+import { setSharedReadlineForExec, interruptCurrentExec } from '../../agent/tools/exec.js';
+import { log, setLoggerReadline } from '../../utils/logger.js';
 
 // Completions for tab — common hacking actions + local commands
 const COMPLETIONS = [
@@ -60,6 +60,8 @@ export async function startCommand(box: string, ip: string): Promise<void> {
   });
 
   setSharedReadline(rl);
+  setSharedReadlineForExec(rl);
+  setLoggerReadline(rl);
 
   // Task queue — agent tasks run in background, new inputs get queued
   let activeTasks = 0;
