@@ -1,4 +1,5 @@
 import { existsSync } from 'fs';
+import { execSync } from 'child_process';
 import { readNotes } from '../session/notes.js';
 
 // Detect wordlist base path (macOS Homebrew vs Linux)
@@ -16,6 +17,12 @@ function getSeclistsBase(): string {
 }
 
 const SECLISTS = getSeclistsBase();
+
+function hasCommand(cmd: string): boolean {
+  try { execSync(`which ${cmd}`, { stdio: 'ignore' }); return true; } catch { return false; }
+}
+
+const HAS_RUSTSCAN = hasCommand('rustscan');
 
 export function buildSystemPrompt(box: string, ip: string, boxDir: string): string {
   const notes = readNotes(boxDir);
@@ -64,7 +71,9 @@ SecLists path : ${SECLISTS}
 Wordlist web par défaut : ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt
 
 ## Arsenal et flags recommandés
-**Recon** : Préfère rustscan si disponible : rustscan -a ${ip} --ulimit 5000 -- -sC -sV -oN ${boxDir}/scans/nmap-detail.txt — sinon fallback nmap : nmap -p- --min-rate 5000 --max-retries 2 -T4 -oN ${boxDir}/scans/nmap-ports.txt ${ip} puis nmap -sC -sV -p <ports> -oN ${boxDir}/scans/nmap-detail.txt ${ip}
+**Recon** : ${HAS_RUSTSCAN
+  ? `rustscan EST installé — utilise-le : rustscan -a ${ip} --ulimit 5000 -- -sC -sV -oN ${boxDir}/scans/nmap-detail.txt`
+  : `rustscan non disponible — utilise nmap en 2 phases : nmap -p- --min-rate 5000 --max-retries 2 -T4 -oN ${boxDir}/scans/nmap-ports.txt ${ip} puis nmap -sC -sV -p <ports> -oN ${boxDir}/scans/nmap-detail.txt ${ip}`}
 **Web** : curl -sI http://${ip} (headers) + curl -s http://${ip} (body/commentaires HTML) + ffuf -u http://${ip}/FUZZ -w ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt -o ${boxDir}/scans/ffuf.json
 **SMB** : smbclient -L //${ip}/ -N, enum4linux -a ${ip}
 **Exploit** : searchsploit, msfconsole, sqlmap, hydra
