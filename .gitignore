@@ -1,0 +1,23 @@
+# Box workspaces (runtime data, not code)
+boxes/
+
+# Active session state
+.claudepwn-active
+
+# VPN files
+*.ovpn
+/tmp/claudepwn-vpn.log
+
+# BMAD framework (local only)
+_bmad/
+_bmad-output/
+.claude/commands/bmad-*.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
