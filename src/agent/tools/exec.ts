@@ -4,7 +4,6 @@ import { join } from 'path';
 import { log } from '../../utils/logger.js';
 import { getConfig } from '../../config/index.js';
 import type Anthropic from '@anthropic-ai/sdk';
-import chalk from 'chalk';
 
 export const execTool: Anthropic.Tool = {
   name: 'Bash',
@@ -63,7 +62,6 @@ export async function executeExec(
     let stdout = '';
     let stderr = '';
     let killed = false;
-    let lastLine = '';
     const startTime = Date.now();
 
     const proc = spawn('bash', ['-c', command], {
@@ -78,41 +76,23 @@ export async function executeExec(
       proc.kill('SIGKILL');
     }, Math.min(timeoutMs, config.execTimeout));
 
-    // Live elapsed timer — update status line every 3s for long commands
-    const statusTimer = setInterval(() => {
-      const elapsed = formatElapsed(Date.now() - startTime);
-      const preview = lastLine.trim().slice(0, 60);
-      const status = preview ? `${preview} ` : '';
-      process.stdout.write(chalk.dim(`\r  ⏱ ${elapsed} ${status}`));
-    }, 3000);
-
     proc.stdout.on('data', (data: Buffer) => {
       const text = data.toString();
       stdout += text;
-      // Track last meaningful line for status
-      const lines = text.split('\n').filter(l => l.trim());
-      if (lines.length) lastLine = lines[lines.length - 1];
-      process.stdout.write(text);
     });
 
     proc.stderr.on('data', (data: Buffer) => {
       const text = data.toString();
       stderr += text;
-      const lines = text.split('\n').filter(l => l.trim());
-      if (lines.length) lastLine = lines[lines.length - 1];
-      process.stderr.write(text);
     });
 
     proc.on('close', (code) => {
       clearTimeout(killTimer);
-      clearInterval(statusTimer);
       currentProc = null;
 
       const elapsed = formatElapsed(Date.now() - startTime);
-      // Clear status line and show completion
-      process.stdout.write(`\r${' '.repeat(80)}\r`);
       if (Date.now() - startTime > 3000) {
-        console.log(chalk.dim(`  ✓ ${elapsed}`));
+        log.info(`Terminé en ${elapsed}`);
       }
 
       let result = stdout;
@@ -134,7 +114,6 @@ export async function executeExec(
 
     proc.on('error', (err) => {
       clearTimeout(killTimer);
-      clearInterval(statusTimer);
       currentProc = null;
       resolve(`Error: ${err.message}`);
     });

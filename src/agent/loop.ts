@@ -1,6 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { randomUUID } from 'crypto';
-import chalk from 'chalk';
 import { getConfig, getApiKey } from '../config/index.js';
 import { login, getValidAccessToken, refreshTokens } from '../utils/auth.js';
 import { getAllTools, executeTool } from './tools/index.js';
@@ -172,21 +171,12 @@ export class AgentLoop {
     while (true) {
       let response: Anthropic.Message;
 
-      // Show thinking status
-      const thinkMsg = turn === 0 ? 'Réflexion...' : 'Analyse des résultats...';
-      const spinner = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'];
-      let spinIdx = 0;
-      const thinkTimer = setInterval(() => {
-        process.stdout.write(chalk.dim(`\r  ${spinner[spinIdx++ % spinner.length]} ${thinkMsg}`));
-      }, 100);
+      // Show thinking status (static line — no \r animation to avoid readline conflicts)
+      log.info(turn === 0 ? 'Réflexion...' : 'Analyse des résultats...');
 
       try {
         response = await this.createMessage(system, tools);
-        clearInterval(thinkTimer);
-        process.stdout.write(`\r${' '.repeat(60)}\r`);
       } catch (err: any) {
-        clearInterval(thinkTimer);
-        process.stdout.write(`\r${' '.repeat(60)}\r`);
         if (err.status === 401 || err.status === 403) {
           try {
             const tokens = await refreshTokens();

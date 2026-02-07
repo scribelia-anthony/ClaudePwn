@@ -171,11 +171,9 @@ export async function startCommand(box: string, ip: string): Promise<void> {
       // Agent busy — queue it
       queue.push(input);
       log.info(`En file d'attente (${queue.length} en attente). L'agent est occupé.`);
-      showPrompt();
     } else {
-      // Start immediately
+      // Start immediately — no prompt until agent finishes (avoids stdout conflicts)
       runTask(input);
-      showPrompt();
     }
   });
 
