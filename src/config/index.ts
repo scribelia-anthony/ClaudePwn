@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, unlinkSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 import dotenv from 'dotenv';
@@ -62,7 +62,6 @@ export function loadOAuthTokens(): OAuthTokens | null {
 
 export function clearOAuthTokens(): void {
   if (existsSync(TOKEN_FILE)) {
-    const { unlinkSync } = require('fs');
     unlinkSync(TOKEN_FILE);
   }
 }

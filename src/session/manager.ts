@@ -1,4 +1,4 @@
-import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'fs';
+import { mkdirSync, existsSync, readFileSync, writeFileSync, readdirSync, statSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { BOXES_DIR, ACTIVE_FILE } from '../config/index.js';
 import { generateNotesTemplate } from './notes.js';
@@ -70,13 +70,13 @@ export function saveHistory(boxDir: string, messages: Array<{ role: string; cont
 export function listBoxes(): Array<{ box: string; ip: string; active: boolean }> {
   if (!existsSync(BOXES_DIR)) return [];
 
-  const { readdirSync, statSync } = require('fs');
-  const entries = readdirSync(BOXES_DIR) as string[];
+  const entries = readdirSync(BOXES_DIR);
   const active = loadActiveSession();
 
   return entries
-    .filter((name: string) => statSync(join(BOXES_DIR, name)).isDirectory())
-    .map((name: string) => {
+    .map((e) => e.toString())
+    .filter((name) => statSync(join(BOXES_DIR, name)).isDirectory())
+    .map((name) => {
       let ip = '?';
       const notesPath = join(BOXES_DIR, name, 'notes.md');
       if (existsSync(notesPath)) {
@@ -90,7 +90,6 @@ export function listBoxes(): Array<{ box: string; ip: string; active: boolean }>
 
 export function clearActiveSession(): void {
   if (existsSync(ACTIVE_FILE)) {
-    const { unlinkSync } = require('fs');
     unlinkSync(ACTIVE_FILE);
   }
 }

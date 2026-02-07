@@ -8,7 +8,7 @@ import { log } from '../utils/logger.js';
 
 type Message = Anthropic.MessageParam;
 
-function createClient(): Anthropic {
+function createClient(): Anthropic | null {
   const apiKey = getApiKey();
   if (apiKey) {
     return new Anthropic({ apiKey });
@@ -19,12 +19,11 @@ function createClient(): Anthropic {
     return new Anthropic({ authToken: tokens.access_token });
   }
 
-  // Placeholder — will be replaced after login
-  return new Anthropic({ apiKey: 'placeholder' });
+  return null;
 }
 
 export class AgentLoop {
-  private client: Anthropic;
+  private client: Anthropic | null;
   private messages: Message[];
   private box: string;
   private ip: string;
@@ -40,16 +39,21 @@ export class AgentLoop {
   }
 
   async ensureAuth(): Promise<void> {
-    if (getApiKey()) return;
+    // API key: no refresh needed
+    if (getApiKey()) {
+      if (!this.client) this.client = new Anthropic({ apiKey: getApiKey()! });
+      return;
+    }
 
+    // OAuth flow
     let tokens = loadOAuthTokens();
     if (!tokens) {
       tokens = await login();
     }
 
-    // Refresh if needed
+    // Refresh if expiring within 5 min
     if (Date.now() > tokens.expires_at - 300000) {
-      await getAuthHeaders(); // triggers refresh
+      await getAuthHeaders(); // triggers refresh + saves
       tokens = loadOAuthTokens();
       if (!tokens) throw new Error('Auth failed');
     }
@@ -59,6 +63,7 @@ export class AgentLoop {
 
   async run(userInput: string): Promise<void> {
     await this.ensureAuth();
+    if (!this.client) throw new Error('Pas authentifié. Lancez `claudepwn login`.');
 
     this.messages.push({ role: 'user', content: userInput });
 
@@ -80,9 +85,14 @@ export class AgentLoop {
       } catch (err: any) {
         if (err.status === 401) {
           log.warn('Token expiré, re-authentification...');
-          const tokens = await login();
-          this.client = new Anthropic({ authToken: tokens.access_token });
-          continue;
+          try {
+            const tokens = await login();
+            this.client = new Anthropic({ authToken: tokens.access_token });
+            continue;
+          } catch (loginErr: any) {
+            log.error(`Re-authentification échouée: ${loginErr.message}`);
+            break;
+          }
         }
         log.error(`API error: ${err.message}`);
         break;
