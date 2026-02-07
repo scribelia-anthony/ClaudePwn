@@ -9,6 +9,7 @@ import { interruptCurrentExec } from '../../agent/tools/exec.js';
 import { log } from '../../utils/logger.js';
 import { outputEmitter, type OutputLine } from '../../utils/output.js';
 import { emitLine } from '../../utils/output.js';
+import { statusEmitter } from '../../utils/status.js';
 
 // Tab completions
 const COMPLETIONS = [
@@ -21,6 +22,34 @@ const COMPLETIONS = [
   'cherche un exploit', 'télécharge', 'upload', 'crack',
   'montre les notes', 'résumé', 'prochaine étape',
 ];
+
+const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+
+function StatusLine() {
+  const [status, setStatusState] = useState<string | null>(null);
+  const [frame, setFrame] = useState(0);
+
+  useEffect(() => {
+    const handler = (text: string | null) => setStatusState(text);
+    statusEmitter.on('change', handler);
+    return () => { statusEmitter.off('change', handler); };
+  }, []);
+
+  useEffect(() => {
+    if (!status) return;
+    const timer = setInterval(() => setFrame(f => (f + 1) % SPINNER_FRAMES.length), 80);
+    return () => clearInterval(timer);
+  }, [status]);
+
+  if (!status) return null;
+  return (
+    <Box>
+      <Text color="green" bold>■</Text>
+      <Text dimColor> {SPINNER_FRAMES[frame]} </Text>
+      <Text dimColor>{status}</Text>
+    </Box>
+  );
+}
 
 interface PromptProps {
   box: string;
@@ -160,6 +189,7 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
           <Text key={line.id}>{line.text}</Text>
         )}
       </Static>
+      <StatusLine />
       <Box>
         <Text color="red">{`claudepwn/${box}`}</Text>
         {running > 0 && <Text dimColor>{` [${running} running]`}</Text>}

@@ -4,6 +4,7 @@ import { join } from 'path';
 import { log } from '../../utils/logger.js';
 import { emitLine } from '../../utils/output.js';
 import { getConfig } from '../../config/index.js';
+import { setStatus } from '../../utils/status.js';
 import type Anthropic from '@anthropic-ai/sdk';
 
 export const execTool: Anthropic.Tool = {
@@ -36,6 +37,21 @@ export function interruptCurrentExec(): boolean {
   return false;
 }
 
+function isProgressLine(line: string): boolean {
+  if (!line.trim()) return true;
+  // ffuf progress
+  if (/:: Progress:/.test(line)) return true;
+  if (/\d+\/\d+\]\s*::\s*Job\s*\[/.test(line) && !/\[Status:/.test(line)) return true;
+  // nmap progress
+  if (/^Stats:\s/.test(line)) return true;
+  if (/^Connect Scan Timing:/.test(line)) return true;
+  if (/^Service scan Timing:/.test(line)) return true;
+  if (/^Completed\s.*\d+\.\d+%/.test(line)) return true;
+  // gobuster/feroxbuster progress
+  if (/^Progress:.*\d+\/\d+/.test(line) && !/Found:/.test(line)) return true;
+  return false;
+}
+
 function formatElapsed(ms: number): string {
   const s = Math.floor(ms / 1000);
   if (s < 60) return `${s}s`;
@@ -52,6 +68,7 @@ export async function executeExec(
   const config = getConfig();
 
   log.command(command);
+  setStatus(`Exécution: ${command.length > 60 ? command.slice(0, 57) + '...' : command}`);
 
   // Log to log.md
   if (boxDir) {
@@ -87,8 +104,10 @@ export async function executeExec(
       stdoutLineBuf += text;
       const lines = stdoutLineBuf.split('\n');
       stdoutLineBuf = lines.pop()!;
-      for (const line of lines) {
-        emitLine(line);
+      for (let line of lines) {
+        const crIdx = line.lastIndexOf('\r');
+        if (crIdx !== -1) line = line.substring(crIdx + 1);
+        if (!isProgressLine(line)) emitLine(line);
       }
     });
 
@@ -98,18 +117,31 @@ export async function executeExec(
       stderrLineBuf += text;
       const lines = stderrLineBuf.split('\n');
       stderrLineBuf = lines.pop()!;
-      for (const line of lines) {
-        emitLine(line);
+      for (let line of lines) {
+        const crIdx = line.lastIndexOf('\r');
+        if (crIdx !== -1) line = line.substring(crIdx + 1);
+        if (!isProgressLine(line)) emitLine(line);
       }
     });
 
     proc.on('close', (code) => {
       clearTimeout(killTimer);
       currentProc = null;
+      setStatus(null);
 
-      // Flush remaining line buffers
-      if (stdoutLineBuf) emitLine(stdoutLineBuf);
-      if (stderrLineBuf) emitLine(stderrLineBuf);
+      // Flush remaining line buffers (with same filtering)
+      if (stdoutLineBuf) {
+        let line = stdoutLineBuf;
+        const crIdx = line.lastIndexOf('\r');
+        if (crIdx !== -1) line = line.substring(crIdx + 1);
+        if (!isProgressLine(line)) emitLine(line);
+      }
+      if (stderrLineBuf) {
+        let line = stderrLineBuf;
+        const crIdx = line.lastIndexOf('\r');
+        if (crIdx !== -1) line = line.substring(crIdx + 1);
+        if (!isProgressLine(line)) emitLine(line);
+      }
 
       const elapsed = formatElapsed(Date.now() - startTime);
       if (Date.now() - startTime > 3000) {
@@ -136,6 +168,7 @@ export async function executeExec(
     proc.on('error', (err) => {
       clearTimeout(killTimer);
       currentProc = null;
+      setStatus(null);
       resolve(`Error: ${err.message}`);
     });
   });

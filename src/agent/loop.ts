@@ -6,6 +6,7 @@ import { getAllTools, executeTool } from './tools/index.js';
 import { buildSystemPrompt } from './system-prompt.js';
 import { saveHistory } from '../session/manager.js';
 import { log } from '../utils/logger.js';
+import { setStatus } from '../utils/status.js';
 
 type Message = Anthropic.MessageParam;
 type ContentBlock = Anthropic.ContentBlock;
@@ -180,8 +181,7 @@ export class AgentLoop {
     while (true) {
       let response: Anthropic.Message;
 
-      // Show thinking status (static line — no \r animation to avoid readline conflicts)
-      log.info(turn === 0 ? 'Réflexion...' : 'Analyse des résultats...');
+      setStatus(turn === 0 ? 'Réflexion...' : 'Analyse des résultats...');
 
       try {
         response = await this.createMessage(system, tools);
@@ -255,6 +255,7 @@ export class AgentLoop {
       turn++;
     }
 
+    setStatus(null);
     saveHistory(this.boxDir, this.messages);
   }
 
