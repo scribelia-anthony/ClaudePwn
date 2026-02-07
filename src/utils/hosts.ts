@@ -4,13 +4,17 @@ import { log } from './logger.js';
 
 export function addHost(ip: string, hostname: string): void {
   const hosts = readFileSync('/etc/hosts', 'utf-8');
-  if (hosts.includes(hostname)) {
-    log.warn(`${hostname} déjà dans /etc/hosts`);
-    return;
+  const existingLine = hosts.split('\n').find(l => l.includes(hostname));
+  if (existingLine) {
+    // Check if IP matches
+    if (existingLine.trim().startsWith(ip)) return; // Already correct
+    // IP changed — remove old entry first
+    try {
+      execSync(`sudo sed -i '' '/${hostname}/d' /etc/hosts`, { stdio: 'ignore' });
+    } catch { /* ignore */ }
   }
   try {
-    execSync(`echo "${ip} ${hostname}" | sudo tee -a /etc/hosts > /dev/null`, { stdio: 'inherit' });
-    log.ok(`Ajouté ${ip} ${hostname} à /etc/hosts`);
+    execSync(`echo "${ip} ${hostname}" | sudo tee -a /etc/hosts > /dev/null`, { stdio: 'ignore' });
   } catch {
     log.warn(`Impossible d'ajouter à /etc/hosts (sudo requis)`);
   }
