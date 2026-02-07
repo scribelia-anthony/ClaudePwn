@@ -1,9 +1,9 @@
 import { createHash, randomBytes } from 'crypto';
-import { createServer } from 'http';
+import { createServer, type IncomingMessage, type ServerResponse } from 'http';
+import { URL } from 'url';
 import open from 'open';
 import {
   OAUTH_CLIENT_ID,
-  OAUTH_REDIRECT_URI,
   OAUTH_SCOPES,
   OAUTH_AUTHORIZE_URL,
   OAUTH_TOKEN_URL,
@@ -13,7 +13,6 @@ import {
   type OAuthTokens,
 } from '../config/index.js';
 import { log } from './logger.js';
-import * as readline from 'readline';
 
 function generatePKCE(): { verifier: string; challenge: string } {
   const verifier = randomBytes(32).toString('base64url');
@@ -25,7 +24,81 @@ function generateState(): string {
   return randomBytes(16).toString('hex');
 }
 
-async function exchangeCode(code: string, verifier: string): Promise<OAuthTokens> {
+/** Start a local HTTP server and wait for the OAuth callback */
+function waitForCallback(port: number, expectedState: string): Promise<{ code: string; state: string }> {
+  return new Promise((resolve, reject) => {
+    const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+      const url = new URL(req.url || '/', `http://127.0.0.1:${port}`);
+
+      if (url.pathname !== '/callback') {
+        res.writeHead(404);
+        res.end('Not found');
+        return;
+      }
+
+      const code = url.searchParams.get('code');
+      const state = url.searchParams.get('state');
+
+      // Send success page to browser
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(`
+        <html><body style="font-family:system-ui;text-align:center;padding:60px;background:#111;color:#fff">
+          <h1 style="color:#0f0">&#x2713; Authentification réussie</h1>
+          <p>Vous pouvez fermer cet onglet et retourner au terminal.</p>
+          <script>setTimeout(()=>window.close(),2000)</script>
+        </body></html>
+      `);
+
+      server.close();
+
+      if (!code) {
+        reject(new Error('Pas de code dans le callback'));
+        return;
+      }
+
+      if (state !== expectedState) {
+        reject(new Error('State mismatch — possible CSRF'));
+        return;
+      }
+
+      resolve({ code, state });
+    });
+
+    // Bind to 127.0.0.1 explicitly (avoid IPv6 issues)
+    server.listen(port, '127.0.0.1', () => {
+      log.info(`Serveur callback en écoute sur http://127.0.0.1:${port}/callback`);
+    });
+
+    server.on('error', (err) => {
+      reject(new Error(`Callback server error: ${err.message}`));
+    });
+
+    // Timeout after 5 minutes
+    setTimeout(() => {
+      server.close();
+      reject(new Error('Timeout — pas de callback reçu en 5 minutes'));
+    }, 300000);
+  });
+}
+
+/** Find a free port */
+function findFreePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.listen(0, '127.0.0.1', () => {
+      const addr = server.address();
+      if (addr && typeof addr === 'object') {
+        const port = addr.port;
+        server.close(() => resolve(port));
+      } else {
+        server.close(() => reject(new Error('Could not find free port')));
+      }
+    });
+    server.on('error', reject);
+  });
+}
+
+async function exchangeCode(code: string, redirectUri: string, verifier: string): Promise<OAuthTokens> {
   const response = await fetch(OAUTH_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -33,7 +106,7 @@ async function exchangeCode(code: string, verifier: string): Promise<OAuthTokens
       grant_type: 'authorization_code',
       code,
       client_id: OAUTH_CLIENT_ID,
-      redirect_uri: OAUTH_REDIRECT_URI,
+      redirect_uri: redirectUri,
       code_verifier: verifier,
     }),
   });
@@ -80,10 +153,17 @@ export async function login(): Promise<OAuthTokens> {
   const { verifier, challenge } = generatePKCE();
   const state = generateState();
 
+  // Find a free port for the callback server
+  const port = await findFreePort();
+  const redirectUri = `http://127.0.0.1:${port}/callback`;
+
+  // Start callback server BEFORE opening browser
+  const callbackPromise = waitForCallback(port, state);
+
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: OAUTH_CLIENT_ID,
-    redirect_uri: OAUTH_REDIRECT_URI,
+    redirect_uri: redirectUri,
     scope: OAUTH_SCOPES,
     state,
     code_challenge: challenge,
@@ -93,38 +173,20 @@ export async function login(): Promise<OAuthTokens> {
   const authUrl = `${OAUTH_AUTHORIZE_URL}?${params}`;
 
   log.info('Ouverture du navigateur pour l\'authentification...');
-  log.info('Si le navigateur ne s\'ouvre pas, copiez ce lien :');
-  console.log(`\n  ${authUrl}\n`);
-
   await open(authUrl);
+  log.info('En attente de l\'autorisation dans le navigateur...');
 
-  log.info('Après authentification, collez le code (format: code#state) :');
+  // Wait for the callback
+  const { code } = await callbackPromise;
 
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  const response = await new Promise<string>((resolve) => {
-    rl.question('> ', (answer) => {
-      rl.close();
-      resolve(answer.trim());
-    });
-  });
-
-  // Parse code#state format
-  const parts = response.split('#');
-  const code = parts[0];
-  const returnedState = parts[1];
-
-  if (returnedState && returnedState !== state) {
-    throw new Error('State mismatch — possible CSRF attack');
-  }
-
-  const tokens = await exchangeCode(code, verifier);
+  // Exchange code for tokens
+  const tokens = await exchangeCode(code, redirectUri, verifier);
   saveOAuthTokens(tokens);
   log.ok('Authentification réussie !');
   return tokens;
 }
 
 export async function getAuthHeaders(): Promise<Record<string, string>> {
-  // Priority: API key > OAuth token
   const apiKey = getApiKey();
   if (apiKey) {
     return { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' };
@@ -136,7 +198,7 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
     tokens = await login();
   }
 
-  // Refresh if expired (with 5min buffer)
+  // Refresh if expiring within 5 min
   if (Date.now() > tokens.expires_at - 300000) {
     try {
       tokens = await refreshToken(tokens);
