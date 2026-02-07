@@ -17,26 +17,18 @@ export const askUserTool: Anthropic.Tool = {
   },
 };
 
-let sharedRl: readline.Interface | null = null;
-
-export function setSharedReadline(rl: readline.Interface): void {
-  sharedRl = rl;
-}
+// For backward compatibility — no longer needed with Ink
+export function setSharedReadline(_rl: any): void {}
 
 export async function executeAskUser(input: { question: string }): Promise<string> {
   console.log(chalk.yellow(`\n[?] ${input.question}`));
 
   return new Promise<string>((resolve) => {
-    if (sharedRl) {
-      sharedRl.question(chalk.yellow('> '), (answer) => {
-        resolve(answer.trim() || '(no response)');
-      });
-    } else {
-      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-      rl.question(chalk.yellow('> '), (answer) => {
-        rl.close();
-        resolve(answer.trim() || '(no response)');
-      });
-    }
+    // Create temporary readline for the question
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(chalk.yellow('> '), (answer) => {
+      rl.close();
+      resolve(answer.trim() || '(no response)');
+    });
   });
 }

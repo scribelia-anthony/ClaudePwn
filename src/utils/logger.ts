@@ -1,48 +1,28 @@
-import * as readline from 'readline';
 import chalk from 'chalk';
-
-// Shared readline instance — set by start.ts
-let sharedRl: readline.Interface | null = null;
-
-export function setLoggerReadline(rl: readline.Interface) {
-  sharedRl = rl;
-}
-
-/**
- * Safe console.log that clears readline prompt before writing.
- * This prevents agent output from corrupting the user's input line.
- */
-function safePrint(...args: unknown[]) {
-  if (sharedRl) {
-    readline.clearLine(process.stdout, 0);
-    readline.cursorTo(process.stdout, 0);
-  }
-  console.log(...args);
-}
 
 export const log = {
   info(msg: string) {
-    safePrint(chalk.blue('[*]'), msg);
+    console.log(chalk.blue('[*]'), msg);
   },
 
   ok(msg: string) {
-    safePrint(chalk.green('[+]'), msg);
+    console.log(chalk.green('[+]'), msg);
   },
 
   warn(msg: string) {
-    safePrint(chalk.yellow('[!]'), msg);
+    console.log(chalk.yellow('[!]'), msg);
   },
 
   error(msg: string) {
-    safePrint(chalk.red('[-]'), msg);
+    console.log(chalk.red('[-]'), msg);
   },
 
   command(cmd: string) {
-    safePrint(chalk.green('$'), chalk.dim(cmd));
+    console.log(chalk.green('$'), chalk.dim(cmd));
   },
 
   result(text: string) {
-    safePrint(chalk.gray(text));
+    console.log(chalk.gray(text));
   },
 
   tool(name: string, input: Record<string, unknown>) {
@@ -57,11 +37,11 @@ export const log = {
             : name === 'AskUserQuestion'
               ? `${input.question}`
               : JSON.stringify(input).slice(0, 80);
-    safePrint(chalk.magenta(`[${name}]`), chalk.dim(summary));
+    console.log(chalk.magenta(`[${name}]`), chalk.dim(summary));
   },
 
   assistant(text: string) {
-    safePrint(chalk.cyan(text));
+    console.log(chalk.cyan(text));
   },
 
   banner() {
