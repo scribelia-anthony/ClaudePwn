@@ -18,15 +18,15 @@ export async function executeTool(
   log.tool(name, input);
 
   switch (name) {
-    case 'exec_command':
+    case 'Bash':
       return executeExec(input as any, boxDir);
-    case 'read_file':
+    case 'Read':
       return executeReadFile(input as any);
-    case 'write_file':
+    case 'Write':
       return executeWriteFile(input as any);
-    case 'http_request':
+    case 'WebFetch':
       return executeHttpRequest(input as any);
-    case 'ask_user':
+    case 'AskUserQuestion':
       return executeAskUser(input as any);
     default:
       return `Unknown tool: ${name}`;

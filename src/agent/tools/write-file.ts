@@ -3,12 +3,12 @@ import { dirname } from 'path';
 import type Anthropic from '@anthropic-ai/sdk';
 
 export const writeFileTool: Anthropic.Tool = {
-  name: 'write_file',
+  name: 'Write',
   description: 'Write or append content to a file. Creates parent directories if needed. Use for saving notes, exploits, configs, etc.',
   input_schema: {
     type: 'object' as const,
     properties: {
-      path: {
+      file_path: {
         type: 'string',
         description: 'Path to the file',
       },
@@ -21,12 +21,12 @@ export const writeFileTool: Anthropic.Tool = {
         description: 'Append instead of overwrite (default: false)',
       },
     },
-    required: ['path', 'content'],
+    required: ['file_path', 'content'],
   },
 };
 
-export async function executeWriteFile(input: { path: string; content: string; append?: boolean }): Promise<string> {
-  const { path, content, append } = input;
+export async function executeWriteFile(input: { file_path: string; content: string; append?: boolean }): Promise<string> {
+  const { file_path: path, content, append } = input;
 
   try {
     mkdirSync(dirname(path), { recursive: true });

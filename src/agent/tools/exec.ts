@@ -6,7 +6,7 @@ import { getConfig } from '../../config/index.js';
 import type Anthropic from '@anthropic-ai/sdk';
 
 export const execTool: Anthropic.Tool = {
-  name: 'exec_command',
+  name: 'Bash',
   description: 'Execute a shell command. Use this for ALL system commands: nmap, ffuf, gobuster, searchsploit, curl, wget, python, etc. Output is streamed in real-time. For long-running commands, set a higher timeout.',
   input_schema: {
     type: 'object' as const,

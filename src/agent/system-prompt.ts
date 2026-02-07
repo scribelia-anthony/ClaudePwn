@@ -52,11 +52,11 @@ ${notes}
 \`\`\`
 
 ## Instructions importantes
-- Utilise exec_command pour TOUTES les commandes système
-- Utilise write_file pour sauvegarder notes et exploits
-- Utilise read_file pour lire des fichiers locaux ou récupérés
-- Utilise http_request pour des requêtes HTTP simples
-- Utilise ask_user SEULEMENT si tu as vraiment besoin d'un input utilisateur
+- Utilise Bash pour TOUTES les commandes système
+- Utilise Write pour sauvegarder notes et exploits
+- Utilise Read pour lire des fichiers locaux ou récupérés
+- Utilise WebFetch pour des requêtes HTTP simples
+- Utilise AskUserQuestion SEULEMENT si tu as vraiment besoin d'un input utilisateur
 - Quand l'utilisateur écrit /ask, c'est le signal pour parler : analyse le contexte et propose les prochaines étapes
 `;
 }

@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import type Anthropic from '@anthropic-ai/sdk';
 
 export const askUserTool: Anthropic.Tool = {
-  name: 'ask_user',
+  name: 'AskUserQuestion',
   description: 'Ask the user a question and wait for their response. Use SPARINGLY — only when you truly need input (e.g., credentials, choice between exploitation paths, confirmation for destructive actions).',
   input_schema: {
     type: 'object' as const,

@@ -1,7 +1,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 
 export const httpRequestTool: Anthropic.Tool = {
-  name: 'http_request',
+  name: 'WebFetch',
   description: 'Make an HTTP request. Useful for testing web endpoints, downloading files, interacting with APIs, etc.',
   input_schema: {
     type: 'object' as const,

@@ -2,26 +2,26 @@ import { readFileSync, existsSync } from 'fs';
 import type Anthropic from '@anthropic-ai/sdk';
 
 export const readFileTool: Anthropic.Tool = {
-  name: 'read_file',
+  name: 'Read',
   description: 'Read the contents of a file. Use for reading scan results, config files, source code, notes, etc.',
   input_schema: {
     type: 'object' as const,
     properties: {
-      path: {
+      file_path: {
         type: 'string',
         description: 'Path to the file to read',
       },
-      max_lines: {
+      limit: {
         type: 'number',
         description: 'Maximum number of lines to return (default: all)',
       },
     },
-    required: ['path'],
+    required: ['file_path'],
   },
 };
 
-export async function executeReadFile(input: { path: string; max_lines?: number }): Promise<string> {
-  const { path, max_lines } = input;
+export async function executeReadFile(input: { file_path: string; limit?: number }): Promise<string> {
+  const { file_path: path, limit: max_lines } = input;
 
   if (!existsSync(path)) {
     return `Error: File not found: ${path}`;
