@@ -2,7 +2,6 @@ import { spawn, type ChildProcess } from 'child_process';
 import { appendFileSync } from 'fs';
 import { join } from 'path';
 import { log } from '../../utils/logger.js';
-import { emitLine } from '../../utils/output.js';
 import { getConfig } from '../../config/index.js';
 import { setStatus } from '../../utils/status.js';
 import type Anthropic from '@anthropic-ai/sdk';
@@ -106,7 +105,7 @@ export async function executeExec(
       for (let line of lines) {
         const crIdx = line.lastIndexOf('\r');
         if (crIdx !== -1) line = line.substring(crIdx + 1);
-        if (!isProgressLine(line)) emitLine(line);
+        if (!isProgressLine(line)) log.toolOutput(line);
       }
     });
 
@@ -119,7 +118,7 @@ export async function executeExec(
       for (let line of lines) {
         const crIdx = line.lastIndexOf('\r');
         if (crIdx !== -1) line = line.substring(crIdx + 1);
-        if (!isProgressLine(line)) emitLine(line);
+        if (!isProgressLine(line)) log.toolOutput(line);
       }
     });
 
@@ -133,18 +132,18 @@ export async function executeExec(
         let line = stdoutLineBuf;
         const crIdx = line.lastIndexOf('\r');
         if (crIdx !== -1) line = line.substring(crIdx + 1);
-        if (!isProgressLine(line)) emitLine(line);
+        if (!isProgressLine(line)) log.toolOutput(line);
       }
       if (stderrLineBuf) {
         let line = stderrLineBuf;
         const crIdx = line.lastIndexOf('\r');
         if (crIdx !== -1) line = line.substring(crIdx + 1);
-        if (!isProgressLine(line)) emitLine(line);
+        if (!isProgressLine(line)) log.toolOutput(line);
       }
 
       const elapsed = formatElapsed(Date.now() - startTime);
       if (Date.now() - startTime > 3000) {
-        log.info(`Terminé en ${elapsed}`);
+        log.elapsed(elapsed);
       }
 
       let result = stdout;

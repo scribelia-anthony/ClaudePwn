@@ -18,27 +18,31 @@ export const log = {
     emitLine(chalk.red('[-]') + ' ' + msg);
   },
 
-  command(cmd: string) {
-    emitLine(chalk.green('$') + ' ' + chalk.dim(cmd));
+  elapsed(elapsed: string) {
+    emitLine(chalk.dim('  ✓ ') + chalk.green.dim(elapsed));
   },
 
   result(text: string) {
     emitLine(chalk.gray(text));
   },
 
+  toolOutput(line: string) {
+    emitLine(chalk.dim('  │ ') + chalk.dim(line));
+  },
+
   tool(name: string, input: Record<string, unknown>) {
     const summary = name === 'Bash'
       ? (input.command as string)
       : name === 'Read'
-        ? `${input.file_path}`
+        ? `Read: ${input.file_path}`
         : name === 'Write'
-          ? `${input.file_path}`
+          ? `Write: ${input.file_path}`
           : name === 'WebFetch'
             ? `${input.method || 'GET'} ${input.url}`
             : name === 'AskUserQuestion'
               ? `${input.question}`
               : JSON.stringify(input).slice(0, 80);
-    emitLine(chalk.magenta(`[${name}]`) + ' ' + chalk.dim(summary));
+    emitLine(chalk.green('  ▸ ') + chalk.white(summary));
   },
 
   assistant(text: string) {
