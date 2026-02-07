@@ -28,7 +28,7 @@ function generateState(): string {
 function waitForCallback(port: number, expectedState: string): Promise<{ code: string; state: string }> {
   return new Promise((resolve, reject) => {
     const server = createServer((req: IncomingMessage, res: ServerResponse) => {
-      const url = new URL(req.url || '/', `http://127.0.0.1:${port}`);
+      const url = new URL(req.url || '/', `http://localhost:${port}`);
 
       if (url.pathname !== '/callback') {
         res.writeHead(404);
@@ -64,9 +64,9 @@ function waitForCallback(port: number, expectedState: string): Promise<{ code: s
       resolve({ code, state });
     });
 
-    // Bind to 127.0.0.1 explicitly (avoid IPv6 issues)
-    server.listen(port, '127.0.0.1', () => {
-      log.info(`Serveur callback en écoute sur http://127.0.0.1:${port}/callback`);
+    // Bind to localhost
+    server.listen(port, 'localhost', () => {
+      log.info(`Serveur callback en écoute sur http://localhost:${port}/callback`);
     });
 
     server.on('error', (err) => {
@@ -85,7 +85,7 @@ function waitForCallback(port: number, expectedState: string): Promise<{ code: s
 function findFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = createServer();
-    server.listen(0, '127.0.0.1', () => {
+    server.listen(0, 'localhost', () => {
       const addr = server.address();
       if (addr && typeof addr === 'object') {
         const port = addr.port;
@@ -155,7 +155,7 @@ export async function login(): Promise<OAuthTokens> {
 
   // Find a free port for the callback server
   const port = await findFreePort();
-  const redirectUri = `http://127.0.0.1:${port}/callback`;
+  const redirectUri = `http://localhost:${port}/callback`;
 
   // Start callback server BEFORE opening browser
   const callbackPromise = waitForCallback(port, state);
