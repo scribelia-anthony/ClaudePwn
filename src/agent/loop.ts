@@ -104,12 +104,21 @@ export class AgentLoop {
   private boxDir: string;
   private config = getConfig();
   private useOAuth = false;
+  private pendingUserMessage: string | null = null;
 
   constructor(box: string, ip: string, boxDir: string, history: Message[] = []) {
     this.box = box;
     this.ip = ip;
     this.boxDir = boxDir;
     this.messages = history;
+  }
+
+  /**
+   * Inject a user message into the conversation.
+   * Will be included in the next API call (between tool executions).
+   */
+  injectMessage(text: string): void {
+    this.pendingUserMessage = text;
   }
 
   private async ensureAuth(): Promise<void> {
@@ -231,7 +240,17 @@ export class AgentLoop {
         }),
       );
 
-      this.messages.push({ role: 'user', content: toolResults });
+      // Include pending user message with tool results if any
+      if (this.pendingUserMessage) {
+        const userText: Anthropic.TextBlockParam = {
+          type: 'text',
+          text: `[Message de l'utilisateur]: ${this.pendingUserMessage}`,
+        };
+        this.messages.push({ role: 'user', content: [...toolResults, userText] });
+        this.pendingUserMessage = null;
+      } else {
+        this.messages.push({ role: 'user', content: toolResults });
+      }
       turn++;
     }
 

@@ -35,7 +35,6 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
   const [running, setRunning] = useState(0);
   const [lines, setLines] = useState<OutputLine[]>([]);
   const runningRef = useRef(0);
-  const pendingRef = useRef<string | null>(null); // Single follow-up message, like Claude Code
   const exitPendingRef = useRef(false);
   const { exit } = useApp();
 
@@ -74,14 +73,6 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
     if (exitPendingRef.current) {
       log.info('Session sauvegardée. À plus.');
       exit();
-      return;
-    }
-
-    // Send follow-up message if user typed while agent was busy
-    if (pendingRef.current) {
-      const next = pendingRef.current;
-      pendingRef.current = null;
-      runTask(next);
       return;
     }
 
@@ -125,8 +116,7 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
 
     if (trimmed === 'status') {
       if (runningRef.current > 0) {
-        const pending = pendingRef.current ? ' + 1 message en attente' : '';
-        log.info(`Agent en cours${pending}`);
+        log.info('Agent en cours');
       } else {
         log.ok('Aucune tâche en cours.');
       }
@@ -135,8 +125,8 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
 
     // Agent task
     if (runningRef.current > 0) {
-      // Hold as follow-up — silently replaces previous pending message
-      pendingRef.current = trimmed;
+      // Inject into ongoing conversation — agent sees it at next API call
+      agent.injectMessage(trimmed);
     } else {
       runTask(trimmed);
     }
