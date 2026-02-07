@@ -35,7 +35,8 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
   const [running, setRunning] = useState(0);
   const [lines, setLines] = useState<OutputLine[]>([]);
   const runningRef = useRef(0);
-  const queueRef = useRef<string[]>([]);
+  const pendingRef = useRef<string | null>(null); // Single follow-up message, like Claude Code
+  const exitPendingRef = useRef(false);
   const { exit } = useApp();
 
   // Listen for output events and add to Static items
@@ -69,15 +70,17 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
     }
     runningRef.current--;
 
-    // Process queue
-    if (queueRef.current.length > 0) {
-      const next = queueRef.current.shift()!;
-      if (next === '__EXIT__') {
-        log.info('Session sauvegardée. À plus.');
-        exit();
-        return;
-      }
-      emitLine(chalk.dim(`\n[queue] → ${next}`));
+    // Check for pending exit
+    if (exitPendingRef.current) {
+      log.info('Session sauvegardée. À plus.');
+      exit();
+      return;
+    }
+
+    // Send follow-up message if user typed while agent was busy
+    if (pendingRef.current) {
+      const next = pendingRef.current;
+      pendingRef.current = null;
       runTask(next);
       return;
     }
@@ -95,10 +98,8 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
 
     if (trimmed === 'exit' || trimmed === 'quit') {
       if (runningRef.current > 0) {
-        log.warn(`${runningRef.current} tâche(s) en cours. Ctrl+C pour interrompre ou retape "exit".`);
-        if (!queueRef.current.includes('__EXIT__')) {
-          queueRef.current.push('__EXIT__');
-        }
+        log.warn('Attente de la fin de la tâche en cours...');
+        exitPendingRef.current = true;
         return;
       }
       log.info('Session sauvegardée. À plus.');
@@ -124,7 +125,8 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
 
     if (trimmed === 'status') {
       if (runningRef.current > 0) {
-        log.info(`${runningRef.current} tâche(s) en cours, ${queueRef.current.length} en attente.`);
+        const pending = pendingRef.current ? ' + 1 message en attente' : '';
+        log.info(`Agent en cours${pending}`);
       } else {
         log.ok('Aucune tâche en cours.');
       }
@@ -133,8 +135,8 @@ function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
 
     // Agent task
     if (runningRef.current > 0) {
-      queueRef.current.push(trimmed);
-      log.info(`En file d'attente (${queueRef.current.length} en attente). L'agent est occupé.`);
+      // Hold as follow-up — silently replaces previous pending message
+      pendingRef.current = trimmed;
     } else {
       runTask(trimmed);
     }
