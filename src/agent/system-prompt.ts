@@ -1,4 +1,21 @@
+import { existsSync } from 'fs';
 import { readNotes } from '../session/notes.js';
+
+// Detect wordlist base path (macOS Homebrew vs Linux)
+function getSeclistsBase(): string {
+  const candidates = [
+    '/opt/homebrew/share/seclists',          // macOS ARM Homebrew
+    '/usr/local/share/seclists',             // macOS Intel Homebrew
+    '/usr/share/seclists',                   // Kali/Parrot/apt
+    '/usr/share/wordlists/seclists',         // Some distros
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) return p;
+  }
+  return '/usr/share/seclists'; // fallback
+}
+
+const SECLISTS = getSeclistsBase();
 
 export function buildSystemPrompt(box: string, ip: string, boxDir: string): string {
   const notes = readNotes(boxDir);
@@ -40,9 +57,13 @@ Tu ne passes JAMAIS à une phase suivante automatiquement :
 - Exploits → ${boxDir}/exploits/
 - notes.md → mets à jour après chaque découverte significative
 
+## Wordlists
+SecLists path : ${SECLISTS}
+Wordlist web par défaut : ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt
+
 ## Arsenal et flags recommandés
 **Recon** : nmap -sC -sV -p- -oN ${boxDir}/scans/nmap-full.txt ${ip}
-**Web** : ffuf -u http://${ip}/FUZZ -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -o ${boxDir}/scans/ffuf.json
+**Web** : ffuf -u http://${ip}/FUZZ -w ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt -o ${boxDir}/scans/ffuf.json
 **SMB** : smbclient -L //${ip}/ -N, enum4linux -a ${ip}
 **Exploit** : searchsploit, msfconsole, sqlmap, hydra
 **Post-Exploit** : linpeas.sh, winpeas.exe, pspy64, bloodhound-python
