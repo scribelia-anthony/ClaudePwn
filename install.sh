@@ -45,7 +45,7 @@ if [ -d "$INSTALL_DIR" ]; then
     git pull
 else
     echo -e "${YELLOW}[*] Clonage...${NC}"
-    git clone https://github.com/anthcoding/ClaudePwn.git "$INSTALL_DIR"
+    git clone https://github.com/scribelia-anthony/ClaudePwn.git "$INSTALL_DIR"
     cd "$INSTALL_DIR"
 fi
 

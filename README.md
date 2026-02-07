@@ -5,13 +5,13 @@ Framework de hacking autonome propulsé par Claude. Un CLI qui utilise l'API Ant
 ## Installation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/anthcoding/ClaudePwn/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/scribelia-anthony/ClaudePwn/main/install.sh | bash
 ```
 
 Ou manuellement :
 
 ```bash
-git clone https://github.com/anthcoding/ClaudePwn.git ~/.claudepwn
+git clone https://github.com/scribelia-anthony/ClaudePwn.git ~/.claudepwn
 cd ~/.claudepwn
 pnpm install && pnpm build
 sudo ln -sf ~/.claudepwn/dist/index.js /usr/local/bin/claudepwn
