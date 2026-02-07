@@ -6,6 +6,30 @@ import { AgentLoop } from '../../agent/loop.js';
 import { setSharedReadline } from '../../agent/tools/ask-user.js';
 import { log } from '../../utils/logger.js';
 
+// Completions for tab — common hacking actions + local commands
+const COMPLETIONS = [
+  // Local
+  'help', 'exit', 'quit', '/ask',
+  // Recon
+  'scan la box', 'scan ports', 'scan udp', 'scan vulns',
+  // Web
+  'enum web', 'ffuf', 'gobuster', 'nikto', 'whatweb', 'wpscan',
+  // Services
+  'enum smb', 'enum ldap', 'enum dns', 'enum snmp', 'enum ftp',
+  // Exploitation
+  'searchsploit', 'exploit', 'reverse shell', 'sqlmap', 'hydra',
+  // Post-exploit
+  'privesc', 'linpeas', 'winpeas', 'bloodhound',
+  // Actions
+  'cherche un exploit', 'télécharge', 'upload', 'crack',
+  'montre les notes', 'résumé', 'prochaine étape',
+];
+
+function completer(line: string): [string[], string] {
+  const hits = COMPLETIONS.filter(c => c.startsWith(line.toLowerCase()));
+  return [hits.length ? hits : COMPLETIONS, line];
+}
+
 export async function startCommand(box: string, ip: string): Promise<void> {
   log.banner();
   log.info(`Démarrage de la session : ${box} (${ip})`);
@@ -26,16 +50,17 @@ export async function startCommand(box: string, ip: string): Promise<void> {
   // Create agent loop
   const agent = new AgentLoop(box, ip, session.boxDir, history);
 
-  // Start REPL
+  // Start REPL with tab completion
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
     prompt: chalk.red(`claudepwn/${box}> `),
+    completer,
   });
 
   setSharedReadline(rl);
 
-  console.log(chalk.dim('\nTape une instruction pour l\'agent. "exit" pour quitter.\n'));
+  console.log(chalk.dim('\nTape une instruction pour l\'agent. Tab pour compléter, "help" pour l\'aide.\n'));
   rl.prompt();
 
   rl.on('line', async (line: string) => {
@@ -54,16 +79,17 @@ export async function startCommand(box: string, ip: string): Promise<void> {
 
     // Local commands — no AI call
     if (input === 'help' || input === '?') {
-      console.log(chalk.bold('\n  Commandes REPL :\n'));
-      console.log(chalk.white('  help, ?         ') + chalk.dim('Affiche cette aide'));
-      console.log(chalk.white('  exit, quit      ') + chalk.dim('Quitte et sauvegarde la session'));
-      console.log(chalk.white('  /ask            ') + chalk.dim('Demande une analyse détaillée à l\'IA'));
-      console.log(chalk.bold('\n  Tout le reste est envoyé à l\'agent IA.\n'));
-      console.log(chalk.dim('  Exemples :'));
-      console.log(chalk.dim('    scan la box'));
-      console.log(chalk.dim('    enum web'));
-      console.log(chalk.dim('    cherche un exploit pour Apache 2.4.18'));
-      console.log(chalk.dim('    privesc\n'));
+      console.log(chalk.bold('\n  Commandes locales :\n'));
+      console.log(chalk.white('  help, ?         ') + chalk.dim('Cette aide'));
+      console.log(chalk.white('  exit, quit      ') + chalk.dim('Quitter (session sauvegardée)'));
+      console.log(chalk.bold('\n  Raccourcis IA :\n'));
+      console.log(chalk.white('  scan la box     ') + chalk.dim('Recon complète (nmap → searchsploit → enum)'));
+      console.log(chalk.white('  enum web        ') + chalk.dim('Énumération web (whatweb, ffuf, nikto)'));
+      console.log(chalk.white('  enum smb        ') + chalk.dim('Énumération SMB (smbclient, enum4linux)'));
+      console.log(chalk.white('  privesc         ') + chalk.dim('Escalade de privilèges (linpeas, enumération)'));
+      console.log(chalk.white('  /ask            ') + chalk.dim('Analyse détaillée + prochaines étapes'));
+      console.log(chalk.bold('\n  Tout le reste est envoyé tel quel à l\'IA.'));
+      console.log(chalk.dim('  Tab pour autocompléter.\n'));
       rl.prompt();
       return;
     }
