@@ -8,4 +8,5 @@ export async function loginCommand(): Promise<void> {
   }
 
   await login();
+  process.exit(0);
 }
