@@ -10,7 +10,7 @@ import { log } from '../../utils/logger.js';
 // Completions for tab — common hacking actions + local commands
 const COMPLETIONS = [
   // Local
-  'help', 'exit', 'quit', '/ask',
+  'help', 'exit', 'quit', '/ask', 'status',
   // Recon
   'scan la box', 'scan ports', 'scan udp', 'scan vulns',
   // Web
@@ -61,10 +61,50 @@ export async function startCommand(box: string, ip: string): Promise<void> {
 
   setSharedReadline(rl);
 
+  // Task queue — agent tasks run in background, new inputs get queued
+  let activeTasks = 0;
+  const queue: string[] = [];
+
+  function showPrompt() {
+    if (activeTasks > 0) {
+      rl.setPrompt(chalk.red(`claudepwn/${box}`) + chalk.dim(` [${activeTasks} running]`) + chalk.red('> '));
+    } else {
+      rl.setPrompt(chalk.red(`claudepwn/${box}> `));
+    }
+    rl.prompt();
+  }
+
+  async function runTask(input: string) {
+    activeTasks++;
+    try {
+      await agent.run(input);
+    } catch (err: any) {
+      log.error(`Erreur agent: ${err.message}`);
+    }
+    activeTasks--;
+
+    // Process queue
+    if (queue.length > 0) {
+      const next = queue.shift()!;
+      if (next === '__EXIT__') {
+        log.info('Session sauvegardée. À plus.');
+        rl.close();
+        process.exit(0);
+      }
+      console.log(chalk.dim(`\n[queue] → ${next}`));
+      runTask(next); // don't await — stays non-blocking
+    }
+
+    // Re-show prompt when all tasks done
+    if (activeTasks === 0) {
+      console.log(''); // newline after agent output
+      showPrompt();
+    }
+  }
+
   // Ctrl+C interrupts running command, second Ctrl+C exits
-  let agentRunning = false;
   process.on('SIGINT', () => {
-    if (agentRunning && interruptCurrentExec()) {
+    if (activeTasks > 0 && interruptCurrentExec()) {
       console.log(chalk.yellow('\n[!] Commande interrompue'));
       return;
     }
@@ -72,18 +112,27 @@ export async function startCommand(box: string, ip: string): Promise<void> {
     process.exit(0);
   });
 
-  console.log(chalk.dim('\nTape une instruction pour l\'agent. Tab pour compléter, "help" pour l\'aide.\n'));
-  rl.prompt();
+  console.log(chalk.dim('\nTape une instruction pour l\'agent. Tab pour compléter, "help" pour l\'aide.'));
+  console.log(chalk.dim('L\'agent travaille en arrière-plan — tu peux taper pendant qu\'il tourne.\n'));
+  showPrompt();
 
-  rl.on('line', async (line: string) => {
+  rl.on('line', (line: string) => {
     const input = line.trim();
 
     if (!input) {
-      rl.prompt();
+      showPrompt();
       return;
     }
 
     if (input === 'exit' || input === 'quit') {
+      if (activeTasks > 0) {
+        log.warn(`${activeTasks} tâche(s) en cours. Ctrl+C pour interrompre ou retape "exit".`);
+        if (queue.length === 0) {
+          queue.push('__EXIT__');
+        }
+        showPrompt();
+        return;
+      }
       log.info('Session sauvegardée. À plus.');
       rl.close();
       process.exit(0);
@@ -93,6 +142,7 @@ export async function startCommand(box: string, ip: string): Promise<void> {
     if (input === 'help' || input === '?') {
       console.log(chalk.bold('\n  Commandes locales :\n'));
       console.log(chalk.white('  help, ?         ') + chalk.dim('Cette aide'));
+      console.log(chalk.white('  status          ') + chalk.dim('Nombre de tâches en cours'));
       console.log(chalk.white('  exit, quit      ') + chalk.dim('Quitter (session sauvegardée)'));
       console.log(chalk.bold('\n  Raccourcis IA :\n'));
       console.log(chalk.white('  scan la box     ') + chalk.dim('Recon complète (nmap → searchsploit → enum)'));
@@ -100,23 +150,33 @@ export async function startCommand(box: string, ip: string): Promise<void> {
       console.log(chalk.white('  enum smb        ') + chalk.dim('Énumération SMB (smbclient, enum4linux)'));
       console.log(chalk.white('  privesc         ') + chalk.dim('Escalade de privilèges (linpeas, enumération)'));
       console.log(chalk.white('  /ask            ') + chalk.dim('Analyse détaillée + prochaines étapes'));
-      console.log(chalk.bold('\n  Tout le reste est envoyé tel quel à l\'IA.'));
-      console.log(chalk.dim('  Tab pour autocompléter.\n'));
-      rl.prompt();
+      console.log(chalk.bold('\n  L\'agent tourne en fond — tu peux taper pendant qu\'il travaille.'));
+      console.log(chalk.dim('  Tab = autocomplétion, Ctrl+C = interrompre scan en cours.\n'));
+      showPrompt();
       return;
     }
 
-    try {
-      rl.pause();
-      agentRunning = true;
-      await agent.run(input);
-      agentRunning = false;
-    } catch (err: any) {
-      agentRunning = false;
-      log.error(`Erreur agent: ${err.message}`);
+    if (input === 'status') {
+      if (activeTasks > 0) {
+        log.info(`${activeTasks} tâche(s) en cours, ${queue.length} en attente.`);
+      } else {
+        log.ok('Aucune tâche en cours.');
+      }
+      showPrompt();
+      return;
     }
 
-    rl.prompt();
+    // Launch agent task in background — don't block the REPL
+    if (activeTasks > 0) {
+      // Agent busy — queue it
+      queue.push(input);
+      log.info(`En file d'attente (${queue.length} en attente). L'agent est occupé.`);
+      showPrompt();
+    } else {
+      // Start immediately
+      runTask(input);
+      showPrompt();
+    }
   });
 
   rl.on('close', () => {
