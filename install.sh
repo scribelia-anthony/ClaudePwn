@@ -68,7 +68,7 @@ echo -e "${YELLOW}[*] Puis 'claudepwn start <box> <ip>' pour commencer${NC}\n"
 # Check offensive tools
 echo -e "${YELLOW}[*] Vérification des outils offensifs...${NC}"
 MISSING=()
-for tool in nmap ffuf gobuster nikto whatweb searchsploit enum4linux smbclient hydra john hashcat sqlmap msfconsole; do
+for tool in rustscan nmap ffuf gobuster nikto searchsploit enum4linux smbclient hydra john hashcat sqlmap msfconsole; do
     if command -v "$tool" &>/dev/null; then
         echo -e "  ${GREEN}✓ $tool${NC}"
     else
@@ -100,6 +100,14 @@ if [ ${#MISSING[@]} -gt 0 ]; then
             for tool in "${MISSING[@]}"; do
                 # Map tool names to package names
                 case "$tool" in
+                    rustscan)
+                        if [ "$PKG_MGR" = "brew" ]; then
+                            pkg="rustscan"
+                        else
+                            echo -e "  ${YELLOW}⚠ rustscan : cargo install rustscan ou https://github.com/RustScan/RustScan/releases${NC}"
+                            continue
+                        fi
+                        ;;
                     searchsploit)
                         if [ "$PKG_MGR" = "brew" ]; then
                             pkg="exploitdb"
