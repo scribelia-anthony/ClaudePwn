@@ -62,7 +62,7 @@ SecLists path : ${SECLISTS}
 Wordlist web par défaut : ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt
 
 ## Arsenal et flags recommandés
-**Recon** : nmap -sC -sV -p- -oN ${boxDir}/scans/nmap-full.txt ${ip}
+**Recon** : D'abord un scan rapide tous ports : nmap -p- --min-rate 5000 -oN ${boxDir}/scans/nmap-ports.txt ${ip} — puis un scan détaillé sur les ports trouvés : nmap -sC -sV -p <ports> -oN ${boxDir}/scans/nmap-detail.txt ${ip}
 **Web** : ffuf -u http://${ip}/FUZZ -w ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt -o ${boxDir}/scans/ffuf.json
 **SMB** : smbclient -L //${ip}/ -N, enum4linux -a ${ip}
 **Exploit** : searchsploit, msfconsole, sqlmap, hydra
