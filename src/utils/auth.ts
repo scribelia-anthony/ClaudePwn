@@ -25,7 +25,7 @@ function generateState(): string {
 }
 
 /** Start a local HTTP server and wait for the OAuth callback */
-function waitForCallback(port: number, expectedState: string): Promise<{ code: string; state: string }> {
+function waitForCallback(port: number, expectedState: string): Promise<{ code: string; state: string; rawUrl: string }> {
   return new Promise((resolve, reject) => {
     const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const url = new URL(req.url || '/', `http://localhost:${port}`);
@@ -61,7 +61,7 @@ function waitForCallback(port: number, expectedState: string): Promise<{ code: s
         return;
       }
 
-      resolve({ code, state });
+      resolve({ code, state: state || '', rawUrl: req.url || '' });
     });
 
     // Bind to localhost
@@ -98,13 +98,14 @@ function findFreePort(): Promise<number> {
   });
 }
 
-async function exchangeCode(code: string, redirectUri: string, verifier: string): Promise<OAuthTokens> {
+async function exchangeCode(code: string, state: string, redirectUri: string, verifier: string): Promise<OAuthTokens> {
   const response = await fetch(OAUTH_TOKEN_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       grant_type: 'authorization_code',
       code,
+      state,
       client_id: OAUTH_CLIENT_ID,
       redirect_uri: redirectUri,
       code_verifier: verifier,
@@ -127,8 +128,8 @@ async function exchangeCode(code: string, redirectUri: string, verifier: string)
 async function refreshToken(tokens: OAuthTokens): Promise<OAuthTokens> {
   const response = await fetch(OAUTH_TOKEN_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       grant_type: 'refresh_token',
       refresh_token: tokens.refresh_token,
       client_id: OAUTH_CLIENT_ID,
@@ -177,10 +178,10 @@ export async function login(): Promise<OAuthTokens> {
   log.info('En attente de l\'autorisation dans le navigateur...');
 
   // Wait for the callback
-  const { code } = await callbackPromise;
+  const { code, state: returnedState } = await callbackPromise;
 
   // Exchange code for tokens
-  const tokens = await exchangeCode(code, redirectUri, verifier);
+  const tokens = await exchangeCode(code, returnedState, redirectUri, verifier);
   saveOAuthTokens(tokens);
   log.ok('Authentification réussie !');
   return tokens;
