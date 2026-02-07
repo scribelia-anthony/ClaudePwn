@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CLAUDEPWN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Résoudre le symlink pour trouver le vrai répertoire d'install
+SOURCE="${BASH_SOURCE[0]}"
+while [[ -L "$SOURCE" ]]; do
+    DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
+    SOURCE="$(readlink "$SOURCE")"
+    [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+CLAUDEPWN_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
 BOXES_DIR="${CLAUDEPWN_DIR}/boxes"
 ACTIVE_FILE="${CLAUDEPWN_DIR}/.claudepwn-active"
 

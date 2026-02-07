@@ -5,20 +5,21 @@ Hacking automation avec Claude Code. L'IA se tait, exécute les outils, enchaîn
 ## Installation
 
 ```bash
-git clone <repo> && cd ClaudePwn
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/scribelia-anthony/ClaudePwn/main/install.sh | bash
 ```
+
+Prérequis : [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`npm install -g @anthropic-ai/claude-code`)
 
 ## Usage
 
 ```bash
 # Connecter le VPN HTB
-claudepwn connect lab_anthony.ovpn
+claudepwn connect lab.ovpn
 
 # Démarrer une box
 claudepwn start Sau 10.10.11.224
 
-# Dans Claude Code, utilise les commandes slash :
+# Dans Claude Code :
 /htb-scan                    # Scan complet auto (nmap → searchsploit → whatweb → ffuf)
 /htb-enum web                # Enum ciblée d'un service
 /htb-enum smb
@@ -33,19 +34,13 @@ claudepwn stop
 
 ## Comment ça marche
 
-- `claudepwn start` crée le workspace `boxes/{box}/`, configure `/etc/hosts`, et lance `claude`
-- Claude Code lit `CLAUDE.md` → mode silencieux, smart chaining, stockage auto
-- Les commandes `/htb-*` sont des slash commands Claude Code (`.claude/commands/`)
-- Un hook PostToolUse log automatiquement chaque commande dans `boxes/{box}/log.md`
-- `/ask` est le seul moment où l'IA parle
-
-## Structure
+`claudepwn start` crée un workspace `boxes/{box}/`, configure `/etc/hosts`, et lance Claude Code avec le bon contexte. L'IA exécute, enchaîne les outils automatiquement (nmap → searchsploit, port 80 → whatweb + ffuf, etc.), et stocke tout dans le workspace. `/ask` est le seul moment où elle parle.
 
 ```
 boxes/{box}/
 ├── notes.md       # Découvertes (ports, services, users, credentials, flags)
 ├── log.md         # Historique des commandes (auto)
-├── scans/         # Outputs bruts (nmap, ffuf, whatweb...)
+├── scans/         # Outputs bruts
 ├── loot/          # Fichiers récupérés, credentials
 └── exploits/      # Scripts d'exploit
 ```
