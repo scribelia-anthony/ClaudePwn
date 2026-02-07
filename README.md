@@ -1,4 +1,4 @@
-# ClaudePwn v2
+# ClaudePwn
 
 Hacking automation avec Claude Code. L'IA se tait, exécute les outils, enchaîne intelligemment, et stocke tout.
 

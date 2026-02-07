@@ -11,7 +11,7 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_PATH="/usr/local/bin/claudepwn"
 
-echo -e "${BOLD}ClaudePwn v2 — Installation${NC}"
+echo -e "${BOLD}ClaudePwn — Installation${NC}"
 echo ""
 
 # Vérifier Claude Code

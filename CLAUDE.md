@@ -1,4 +1,4 @@
-# ClaudePwn v2 — Assistant de Hacking Silencieux
+# ClaudePwn — Assistant de Hacking Silencieux
 
 ## Identité
 

@@ -14,7 +14,7 @@ NC='\033[0m'
 
 usage() {
     cat <<EOF
-${BOLD}ClaudePwn v2${NC} — Hacking Automation with Claude
+${BOLD}ClaudePwn${NC} — Hacking Automation with Claude
 
 ${BOLD}Usage:${NC}
   claudepwn start <box-name> <ip>    Crée le workspace, configure /etc/hosts, lance claude
