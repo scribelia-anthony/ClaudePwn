@@ -76,22 +76,39 @@ export async function executeExec(
       proc.kill('SIGKILL');
     }, Math.min(timeoutMs, config.execTimeout));
 
-    // Stream output in real-time — Ink captures stdout and displays above input
+    // Stream output line-by-line via console.log — Ink renders above input
+    let stdoutLineBuf = '';
+    let stderrLineBuf = '';
+
     proc.stdout.on('data', (data: Buffer) => {
       const text = data.toString();
       stdout += text;
-      process.stdout.write(text);
+      stdoutLineBuf += text;
+      const lines = stdoutLineBuf.split('\n');
+      stdoutLineBuf = lines.pop()!; // keep incomplete last line
+      for (const line of lines) {
+        console.log(line);
+      }
     });
 
     proc.stderr.on('data', (data: Buffer) => {
       const text = data.toString();
       stderr += text;
-      process.stderr.write(text);
+      stderrLineBuf += text;
+      const lines = stderrLineBuf.split('\n');
+      stderrLineBuf = lines.pop()!;
+      for (const line of lines) {
+        console.error(line);
+      }
     });
 
     proc.on('close', (code) => {
       clearTimeout(killTimer);
       currentProc = null;
+
+      // Flush remaining line buffers
+      if (stdoutLineBuf) console.log(stdoutLineBuf);
+      if (stderrLineBuf) console.error(stderrLineBuf);
 
       const elapsed = formatElapsed(Date.now() - startTime);
       if (Date.now() - startTime > 3000) {

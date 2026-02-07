@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { render, Box, Text, useApp, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
@@ -20,12 +20,32 @@ const COMPLETIONS = [
   'montre les notes', 'résumé', 'prochaine étape',
 ];
 
-function Prompt({ box, agent }: { box: string; agent: AgentLoop }) {
+interface PromptProps {
+  box: string;
+  ip: string;
+  agent: AgentLoop;
+  historyLen: number;
+  boxDir: string;
+}
+
+function Prompt({ box, ip, agent, historyLen, boxDir }: PromptProps) {
   const [input, setInput] = useState('');
   const [running, setRunning] = useState(0);
   const runningRef = useRef(0);
   const queueRef = useRef<string[]>([]);
   const { exit } = useApp();
+
+  // Show banner and setup info AFTER Ink starts (so it manages the output)
+  useEffect(() => {
+    log.banner();
+    log.info(`Démarrage de la session : ${box} (${ip})`);
+    log.ok(`Workspace : ${boxDir}/`);
+    if (historyLen > 0) {
+      log.ok(`Session précédente chargée (${historyLen} messages)`);
+    }
+    console.log(chalk.dim('\nTape une instruction. Tab pour compléter, "help" pour l\'aide.'));
+    console.log(chalk.dim('L\'agent travaille en arrière-plan — tu peux taper pendant qu\'il tourne.\n'));
+  }, []);
 
   const runTask = useCallback(async (text: string) => {
     runningRef.current++;
@@ -58,7 +78,7 @@ function Prompt({ box, agent }: { box: string; agent: AgentLoop }) {
     setInput('');
     if (!trimmed) return;
 
-    // Echo the command like a real terminal
+    // Echo the command
     console.log(chalk.red(`claudepwn/${box}> `) + trimmed);
 
     if (trimmed === 'exit' || trimmed === 'quit') {
@@ -139,26 +159,21 @@ function Prompt({ box, agent }: { box: string; agent: AgentLoop }) {
 }
 
 export async function startCommand(box: string, ip: string): Promise<void> {
-  log.banner();
-  log.info(`Démarrage de la session : ${box} (${ip})`);
-
+  // Setup session (no console output before Ink starts)
   const session = createSession(box, ip);
-  log.ok(`Workspace créé : ${session.boxDir}/`);
-
   addHost(ip, `${box.toLowerCase()}.htb`);
-
   const history = loadHistory(session.boxDir);
-  if (history.length > 0) {
-    log.ok(`Session précédente chargée (${history.length} messages)`);
-  }
-
   const agent = new AgentLoop(box, ip, session.boxDir, history);
 
-  console.log(chalk.dim('\nTape une instruction pour l\'agent. Tab pour compléter, "help" pour l\'aide.'));
-  console.log(chalk.dim('L\'agent travaille en arrière-plan — tu peux taper pendant qu\'il tourne.\n'));
-
+  // Start Ink — ALL output goes through Ink from here
   const { waitUntilExit } = render(
-    <Prompt box={box} agent={agent} />,
+    <Prompt
+      box={box}
+      ip={ip}
+      agent={agent}
+      historyLen={history.length}
+      boxDir={session.boxDir}
+    />,
     { exitOnCtrlC: false },
   );
 
