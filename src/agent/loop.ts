@@ -8,6 +8,19 @@ import { log } from '../utils/logger.js';
 
 type Message = Anthropic.MessageParam;
 
+const OAUTH_HEADERS: Record<string, string> = {
+  'anthropic-dangerous-direct-browser-access': 'true',
+};
+
+const OAUTH_BETAS = ['oauth-2025-04-20'];
+
+function createOAuthClient(accessToken: string): Anthropic {
+  return new Anthropic({
+    authToken: accessToken,
+    defaultHeaders: OAUTH_HEADERS,
+  });
+}
+
 function createClient(): Anthropic | null {
   const apiKey = getApiKey();
   if (apiKey) {
@@ -16,7 +29,7 @@ function createClient(): Anthropic | null {
 
   const tokens = loadOAuthTokens();
   if (tokens) {
-    return new Anthropic({ authToken: tokens.access_token });
+    return createOAuthClient(tokens.access_token);
   }
 
   return null;
@@ -29,23 +42,25 @@ export class AgentLoop {
   private ip: string;
   private boxDir: string;
   private config = getConfig();
+  private useOAuth = false;
 
   constructor(box: string, ip: string, boxDir: string, history: Message[] = []) {
     this.box = box;
     this.ip = ip;
     this.boxDir = boxDir;
     this.messages = history;
+    this.useOAuth = !getApiKey();
     this.client = createClient();
   }
 
   async ensureAuth(): Promise<void> {
-    // API key: no refresh needed
     if (getApiKey()) {
       if (!this.client) this.client = new Anthropic({ apiKey: getApiKey()! });
+      this.useOAuth = false;
       return;
     }
 
-    // OAuth flow
+    this.useOAuth = true;
     let tokens = loadOAuthTokens();
     if (!tokens) {
       tokens = await login();
@@ -53,12 +68,12 @@ export class AgentLoop {
 
     // Refresh if expiring within 5 min
     if (Date.now() > tokens.expires_at - 300000) {
-      await getAuthHeaders(); // triggers refresh + saves
+      await getAuthHeaders();
       tokens = loadOAuthTokens();
       if (!tokens) throw new Error('Auth failed');
     }
 
-    this.client = new Anthropic({ authToken: tokens.access_token });
+    this.client = createOAuthClient(tokens.access_token);
   }
 
   async run(userInput: string): Promise<void> {
@@ -70,24 +85,30 @@ export class AgentLoop {
     const system = buildSystemPrompt(this.box, this.ip, this.boxDir);
     const tools = getAllTools();
 
-    // Agent loop — keep going while Claude wants to use tools
     while (true) {
       let response: Anthropic.Message;
 
       try {
-        response = await this.client.messages.create({
+        const params: Anthropic.MessageCreateParamsNonStreaming = {
           model: this.config.model,
           max_tokens: this.config.maxTokens,
           system,
           messages: this.messages,
           tools,
-        });
+        };
+
+        // Add beta header for OAuth
+        if (this.useOAuth) {
+          (params as any).betas = OAUTH_BETAS;
+        }
+
+        response = await this.client.messages.create(params);
       } catch (err: any) {
         if (err.status === 401) {
           log.warn('Token expiré, re-authentification...');
           try {
             const tokens = await login();
-            this.client = new Anthropic({ authToken: tokens.access_token });
+            this.client = createOAuthClient(tokens.access_token);
             continue;
           } catch (loginErr: any) {
             log.error(`Re-authentification échouée: ${loginErr.message}`);
@@ -98,10 +119,8 @@ export class AgentLoop {
         break;
       }
 
-      // Push assistant response
       this.messages.push({ role: 'assistant', content: response.content });
 
-      // Process content blocks
       const toolUseBlocks: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];
 
       for (const block of response.content) {
@@ -116,12 +135,10 @@ export class AgentLoop {
         }
       }
 
-      // If no tool use, we're done
       if (response.stop_reason === 'end_turn' || toolUseBlocks.length === 0) {
         break;
       }
 
-      // Execute tools and collect results
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
       for (const tool of toolUseBlocks) {
@@ -133,11 +150,9 @@ export class AgentLoop {
         });
       }
 
-      // Push tool results and continue loop
       this.messages.push({ role: 'user', content: toolResults });
     }
 
-    // Save history after each turn
     saveHistory(this.boxDir, this.messages);
   }
 
