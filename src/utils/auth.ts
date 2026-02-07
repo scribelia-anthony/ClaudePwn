@@ -13,6 +13,14 @@ import {
   type OAuthTokens,
 } from '../config/index.js';
 import { log } from './logger.js';
+import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'fs';
+import { homedir } from 'os';
+import { join } from 'path';
+
+const API_KEY_FILE = join(homedir(), '.claudepwn', 'api-key');
+const CREATE_KEY_URL = 'https://api.anthropic.com/api/oauth/claude_cli/create_api_key';
+
+// --- PKCE ---
 
 function generatePKCE(): { verifier: string; challenge: string } {
   const verifier = randomBytes(32).toString('base64url');
@@ -24,9 +32,15 @@ function generateState(): string {
   return randomBytes(16).toString('hex');
 }
 
-/** Start a local HTTP server and wait for the OAuth callback */
-function waitForCallback(port: number, expectedState: string): Promise<{ code: string; state: string; rawUrl: string }> {
+// --- Local callback server ---
+
+function waitForCallback(port: number, expectedState: string): Promise<{ code: string; state: string }> {
   return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      server.close();
+      reject(new Error('Timeout — pas de callback reçu en 5 minutes'));
+    }, 300000);
+
     const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const url = new URL(req.url || '/', `http://localhost:${port}`);
 
@@ -39,49 +53,35 @@ function waitForCallback(port: number, expectedState: string): Promise<{ code: s
       const code = url.searchParams.get('code');
       const state = url.searchParams.get('state');
 
-      // Send success page to browser
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(`
-        <html><body style="font-family:system-ui;text-align:center;padding:60px;background:#111;color:#fff">
-          <h1 style="color:#0f0">&#x2713; Authentification réussie</h1>
-          <p>Vous pouvez fermer cet onglet et retourner au terminal.</p>
-          <script>setTimeout(()=>window.close(),2000)</script>
-        </body></html>
-      `);
+      res.end(`<html><body style="font-family:system-ui;text-align:center;padding:60px;background:#111;color:#fff">
+        <h1 style="color:#0f0">&#x2713; Authentification réussie</h1>
+        <p>Vous pouvez fermer cet onglet.</p>
+        <script>setTimeout(()=>window.close(),1500)</script>
+      </body></html>`);
 
+      clearTimeout(timeout);
       server.close();
 
       if (!code) {
         reject(new Error('Pas de code dans le callback'));
         return;
       }
-
       if (state !== expectedState) {
-        reject(new Error('State mismatch — possible CSRF'));
+        reject(new Error('State mismatch'));
         return;
       }
-
-      resolve({ code, state: state || '', rawUrl: req.url || '' });
+      resolve({ code, state: state || '' });
     });
 
-    // Bind to localhost
-    server.listen(port, 'localhost', () => {
-      log.info(`Serveur callback en écoute sur http://localhost:${port}/callback`);
-    });
-
+    server.listen(port, 'localhost');
     server.on('error', (err) => {
-      reject(new Error(`Callback server error: ${err.message}`));
+      clearTimeout(timeout);
+      reject(new Error(`Callback server: ${err.message}`));
     });
-
-    // Timeout after 5 minutes
-    setTimeout(() => {
-      server.close();
-      reject(new Error('Timeout — pas de callback reçu en 5 minutes'));
-    }, 300000);
   });
 }
 
-/** Find a free port */
 function findFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = createServer();
@@ -97,6 +97,8 @@ function findFreePort(): Promise<number> {
     server.on('error', reject);
   });
 }
+
+// --- OAuth token exchange ---
 
 async function exchangeCode(code: string, state: string, redirectUri: string, verifier: string): Promise<OAuthTokens> {
   const response = await fetch(OAUTH_TOKEN_URL, {
@@ -125,40 +127,59 @@ async function exchangeCode(code: string, state: string, redirectUri: string, ve
   };
 }
 
-async function refreshToken(tokens: OAuthTokens): Promise<OAuthTokens> {
-  const response = await fetch(OAUTH_TOKEN_URL, {
+// --- Create permanent API key from OAuth token ---
+
+async function createApiKey(accessToken: string): Promise<string> {
+  const response = await fetch(CREATE_KEY_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      grant_type: 'refresh_token',
-      refresh_token: tokens.refresh_token,
-      client_id: OAUTH_CLIENT_ID,
-    }),
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: '{}',
   });
 
   if (!response.ok) {
-    throw new Error(`Token refresh failed (${response.status})`);
+    const text = await response.text();
+    throw new Error(`API key creation failed (${response.status}): ${text}`);
   }
 
-  const data = await response.json() as { access_token: string; refresh_token: string; expires_in: number };
-  const newTokens: OAuthTokens = {
-    access_token: data.access_token,
-    refresh_token: data.refresh_token || tokens.refresh_token,
-    expires_at: Date.now() + data.expires_in * 1000,
-  };
-  saveOAuthTokens(newTokens);
-  return newTokens;
+  const data = await response.json() as { raw_key: string };
+  return data.raw_key;
 }
 
-export async function login(): Promise<OAuthTokens> {
+// --- Saved API key ---
+
+function saveApiKey(key: string): void {
+  const dir = join(homedir(), '.claudepwn');
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  writeFileSync(API_KEY_FILE, key, { mode: 0o600 });
+}
+
+function loadSavedApiKey(): string | null {
+  if (!existsSync(API_KEY_FILE)) return null;
+  try {
+    return readFileSync(API_KEY_FILE, 'utf-8').trim();
+  } catch {
+    return null;
+  }
+}
+
+// --- Public API ---
+
+/**
+ * Full login flow:
+ * 1. OAuth PKCE → temporary access token
+ * 2. Create permanent API key with that token
+ * 3. Save API key to ~/.claudepwn/api-key
+ */
+export async function login(): Promise<string> {
   const { verifier, challenge } = generatePKCE();
   const state = generateState();
 
-  // Find a free port for the callback server
   const port = await findFreePort();
   const redirectUri = `http://localhost:${port}/callback`;
 
-  // Start callback server BEFORE opening browser
   const callbackPromise = waitForCallback(port, state);
 
   const params = new URLSearchParams({
@@ -173,48 +194,35 @@ export async function login(): Promise<OAuthTokens> {
 
   const authUrl = `${OAUTH_AUTHORIZE_URL}?${params}`;
 
-  log.info('Ouverture du navigateur pour l\'authentification...');
+  log.info('Ouverture du navigateur...');
   await open(authUrl);
-  log.info('En attente de l\'autorisation dans le navigateur...');
+  log.info('En attente de l\'autorisation...');
 
-  // Wait for the callback
   const { code, state: returnedState } = await callbackPromise;
 
-  // Exchange code for tokens
-  const tokens = await exchangeCode(code, returnedState, redirectUri, verifier);
-  saveOAuthTokens(tokens);
-  log.ok('Authentification réussie !');
-  return tokens;
+  log.info('Échange du token...');
+  const oauthTokens = await exchangeCode(code, returnedState, redirectUri, verifier);
+
+  log.info('Création de l\'API key...');
+  const apiKey = await createApiKey(oauthTokens.access_token);
+
+  saveApiKey(apiKey);
+  // Also save OAuth tokens for potential refresh
+  saveOAuthTokens(oauthTokens);
+
+  log.ok('Authentifié ! API key sauvegardée.');
+  return apiKey;
 }
 
-export async function getAuthHeaders(): Promise<Record<string, string>> {
-  const apiKey = getApiKey();
-  if (apiKey) {
-    return { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' };
-  }
-
-  let tokens = loadOAuthTokens();
-  if (!tokens) {
-    log.warn('Pas de token OAuth. Lancez `claudepwn login` d\'abord.');
-    tokens = await login();
-  }
-
-  // Refresh if expiring within 5 min
-  if (Date.now() > tokens.expires_at - 300000) {
-    try {
-      tokens = await refreshToken(tokens);
-    } catch {
-      log.warn('Refresh token expiré, re-authentification nécessaire');
-      tokens = await login();
-    }
-  }
-
-  return {
-    Authorization: `Bearer ${tokens.access_token}`,
-    'anthropic-version': '2023-06-01',
-  };
+/**
+ * Get a working API key. Priority:
+ * 1. ANTHROPIC_API_KEY env var
+ * 2. ~/.claudepwn/api-key (from OAuth login)
+ */
+export function getEffectiveApiKey(): string | null {
+  return getApiKey() || loadSavedApiKey();
 }
 
 export function isAuthenticated(): boolean {
-  return !!(getApiKey() || loadOAuthTokens());
+  return !!getEffectiveApiKey();
 }
