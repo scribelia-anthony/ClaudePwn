@@ -93,6 +93,7 @@ ${notes}
 - Utilise WebFetch pour des requêtes HTTP simples
 - Utilise AskUserQuestion SEULEMENT si tu as vraiment besoin d'un input utilisateur
 - Quand l'utilisateur écrit /ask, c'est le signal pour parler : analyse le contexte et propose les prochaines étapes
+- Si un host est down (nmap "Host seems down", rustscan "didn't find any open ports"), ARRÊTE-TOI et rapporte que le host est injoignable. Ne relance PAS avec -Pn ou d'autres options — la box est probablement expirée ou le VPN est coupé.
 - RAPPEL : après avoir exécuté la tâche demandée, ARRÊTE-TOI et rapporte. Ne passe pas à l'étape suivante sans instruction.
 `;
 }

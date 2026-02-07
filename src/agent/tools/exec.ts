@@ -59,6 +59,8 @@ function isProgressLine(raw: string): boolean {
   if (/^Scanned at\s/.test(line)) return true;
   if (/^Read data files from:/.test(line)) return true;
   if (/^Service detection performed/.test(line)) return true;
+  if (/^CONN\s/.test(line)) return true;
+  if (/^Packet Tracing/.test(line)) return true;
   // nmap SSH key blobs — any line with 60+ contiguous base64 chars anywhere
   if (/[A-Za-z0-9+/=]{60,}/.test(line)) return true;
   // rustscan banner/noise
@@ -67,7 +69,10 @@ function isProgressLine(raw: string): boolean {
   if (/^The Modern Day/.test(line)) return true;
   if (/^RustScan:/.test(line)) return true;
   if (/^Scanning ports faster/.test(line)) return true;
-  if (/^\[~\]\s/.test(line)) return true;
+  if (/^\[.\]\s/.test(line)) return true;
+  if (/^\*I used/.test(line)) return true;
+  if (/^Breaking and entering/.test(line)) return true;
+  if (/^\s*Alternatively,/.test(line)) return true;
   if (/^\[>\]\sRunning script/.test(line)) return true;
   if (/^Depending on the complexity/.test(line)) return true;
   // gobuster/feroxbuster progress
