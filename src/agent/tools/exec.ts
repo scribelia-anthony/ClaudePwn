@@ -61,9 +61,12 @@ function isProgressLine(raw: string): boolean {
   if (/^Service detection performed/.test(line)) return true;
   if (/^CONN\s/.test(line)) return true;
   if (/^Packet Tracing/.test(line)) return true;
-  // nmap SSH key blobs — any line with 60+ contiguous base64 chars anywhere
+  // nmap SSH key blobs + fingerprints
   if (/[A-Za-z0-9+/=]{60,}/.test(line)) return true;
-  // rustscan banner/noise
+  if (/^\|\s*ssh-hostkey:/.test(line)) return true;
+  if (/^\|\s+\d+\s+[0-9a-f:]{20,}/.test(line)) return true;
+  // rustscan banner/noise + random taglines
+  if (/[\u{1F000}-\u{1FFFF}]/u.test(line)) return true;
   if (/^[.|\-{}\s\\/'`_]{4,}$/.test(line)) return true;
   if (/^\s*:.*:$/.test(line)) return true;
   if (/^The Modern Day/.test(line)) return true;
