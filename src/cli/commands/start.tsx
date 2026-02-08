@@ -231,12 +231,16 @@ function Prompt({ box, ip, agent, historyLen, boxDir, hostUp }: PromptProps) {
 }
 
 function checkHost(ip: string): boolean {
-  try {
-    execSync(`ping -c 1 -W 2 ${ip}`, { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
+  // TCP probe on common ports — ICMP ping is often blocked on HTB boxes
+  for (const port of [80, 443, 22, 21]) {
+    try {
+      execSync(`nc -z -w 2 ${ip} ${port}`, { stdio: 'ignore' });
+      return true;
+    } catch {
+      // port closed or filtered, try next
+    }
   }
+  return false;
 }
 
 export async function startCommand(box: string, ip: string): Promise<void> {
