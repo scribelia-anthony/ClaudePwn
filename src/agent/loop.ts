@@ -209,8 +209,11 @@ export class AgentLoop {
 
     const messageCountBefore = this.messages.length;
 
+    const MAX_TURNS = 30;
+    const MAX_ELAPSED_MS = 10 * 60 * 1000; // 10 minutes
+    const startTime = Date.now();
     let turn = 0;
-    while (true) {
+    while (turn < MAX_TURNS && Date.now() - startTime < MAX_ELAPSED_MS) {
       let response: Anthropic.Message;
 
       setStatus(turn === 0 ? 'Réflexion...' : 'Analyse des résultats...');
@@ -284,6 +287,12 @@ export class AgentLoop {
         this.messages.push({ role: 'user', content: toolResults });
       }
       turn++;
+    }
+
+    if (turn >= MAX_TURNS) {
+      log.warn(`Agent arrêté : limite de ${MAX_TURNS} tours atteinte.`);
+    } else if (Date.now() - startTime >= MAX_ELAPSED_MS) {
+      log.warn(`Agent arrêté : timeout de 10 minutes atteint.`);
     }
 
     setStatus(null);

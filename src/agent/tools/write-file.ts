@@ -1,5 +1,5 @@
 import { writeFileSync, appendFileSync, mkdirSync } from 'fs';
-import { dirname } from 'path';
+import { dirname, resolve, relative } from 'path';
 import type Anthropic from '@anthropic-ai/sdk';
 
 export const writeFileTool: Anthropic.Tool = {
@@ -25,8 +25,18 @@ export const writeFileTool: Anthropic.Tool = {
   },
 };
 
-export async function executeWriteFile(input: { file_path: string; content: string; append?: boolean }): Promise<string> {
+export async function executeWriteFile(input: { file_path: string; content: string; append?: boolean }, boxDir: string | null): Promise<string> {
   const { file_path: path, content, append } = input;
+
+  // Validate path is within workspace to prevent directory traversal
+  if (boxDir) {
+    const absPath = resolve(path);
+    const absWorkspace = resolve(boxDir);
+    const rel = relative(absWorkspace, absPath);
+    if (rel.startsWith('..') || resolve(rel) === absPath) {
+      return `Error: path outside workspace — write restricted to ${boxDir}/`;
+    }
+  }
 
   try {
     mkdirSync(dirname(path), { recursive: true });

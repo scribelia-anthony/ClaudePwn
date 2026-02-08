@@ -23,7 +23,7 @@ export async function executeTool(
     case 'Read':
       return executeReadFile(input as any);
     case 'Write':
-      return executeWriteFile(input as any);
+      return executeWriteFile(input as any, boxDir);
     case 'WebFetch':
       return executeHttpRequest(input as any);
     case 'AskUserQuestion':
