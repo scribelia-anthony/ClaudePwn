@@ -18,14 +18,29 @@ function renderMarkdown(text: string): string {
   let tableRows: string[][] = [];
   let tableAligns: string[] = [];
 
+  /** Strip markdown syntax to get visual text length */
+  function stripMd(s: string): string {
+    return s
+      .replace(/\*\*`([^`]+)`\*\*/g, '$1')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '$1');
+  }
+
+  /** Pad styled string to target visual width */
+  function padStyled(styled: string, targetWidth: number): string {
+    const visLen = styled.replace(/\x1b\[[0-9;]*m/g, '').length;
+    return styled + ' '.repeat(Math.max(0, targetWidth - visLen));
+  }
+
   function flushTable() {
     if (tableRows.length === 0) return;
-    // Calculate column widths
+    // Calculate column widths based on visual length (no markdown syntax)
     const colCount = Math.max(...tableRows.map(r => r.length));
     const widths: number[] = Array(colCount).fill(0);
     for (const row of tableRows) {
       for (let i = 0; i < row.length; i++) {
-        widths[i] = Math.max(widths[i], row[i].length);
+        widths[i] = Math.max(widths[i], stripMd(row[i]).length);
       }
     }
 
@@ -37,8 +52,9 @@ function renderMarkdown(text: string): string {
     for (let r = 0; r < tableRows.length; r++) {
       const row = tableRows[r];
       const cells = widths.map((w, i) => {
-        const val = (row[i] || '').padEnd(w);
-        return r === 0 ? chalk.bold.cyan(val) : inlineStyle(val);
+        const raw = row[i] || '';
+        const styled = r === 0 ? chalk.bold.cyan(raw) : inlineStyle(raw);
+        return padStyled(styled, w);
       });
       out.push(chalk.dim('  │') + cells.map(c => ` ${c} `).join(chalk.dim('│')) + chalk.dim('│'));
       if (r === 0) out.push(mLine);
