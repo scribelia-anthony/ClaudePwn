@@ -56,10 +56,14 @@ function stripAnsi(str: string): string {
 function isProgressLine(raw: string): boolean {
   const line = stripAnsi(raw);
   if (!line.trim()) return true;
-  // ffuf progress + config
+  // ffuf progress + config + banner
   if (/:: Progress:/.test(line)) return true;
   if (/\d+\/\d+\]\s*::\s*Job\s*\[/.test(line) && !/\[Status:/.test(line)) return true;
   if (/^\s*:: \w/.test(line)) return true;
+  if (/^\s*v\d+\.\d+/.test(line)) return true;                    // ffuf version line
+  if (/[,_]{2,}.*\\/.test(line) && /\\.*\\/.test(line)) return true; // ffuf ASCII art
+  if (/^\s*\/'___\\/.test(line)) return true;                      // ffuf banner top
+  if (/^\s*_{10,}/.test(line)) return true;                        // ffuf separator line
   // nmap verbose noise
   if (/^Stats:\s/.test(line)) return true;
   if (/^Connect Scan Timing:/.test(line)) return true;

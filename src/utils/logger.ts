@@ -1,9 +1,15 @@
-import chalk from 'chalk';
+import chalk, { Chalk } from 'chalk';
 import { marked } from 'marked';
 import { markedTerminal } from 'marked-terminal';
 import { emitLine } from './output.js';
 
-marked.use(markedTerminal({ tab: 2 }) as any);
+// Force full color support for marked-terminal (chalk may detect level 0 at import time)
+const fullColorChalk = new Chalk({ level: 3 });
+marked.use(markedTerminal({
+  tab: 2,
+  chalk: fullColorChalk,
+  showSectionPrefix: false,
+}) as any);
 
 export const log = {
   info(msg: string) {
