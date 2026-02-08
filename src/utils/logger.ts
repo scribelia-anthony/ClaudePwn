@@ -1,5 +1,9 @@
 import chalk from 'chalk';
+import { marked } from 'marked';
+import { markedTerminal } from 'marked-terminal';
 import { emitLine } from './output.js';
+
+marked.use(markedTerminal({ tab: 2 }) as any);
 
 export const log = {
   info(msg: string) {
@@ -46,9 +50,10 @@ export const log = {
   },
 
   assistant(text: string) {
-    // Split multi-line assistant text into individual lines
-    for (const line of text.split('\n')) {
-      emitLine(chalk.cyan(line));
+    // Render markdown to terminal ANSI (bold, tables, etc.)
+    const rendered = (marked.parse(text) as string).trimEnd();
+    for (const line of rendered.split('\n')) {
+      emitLine(line);
     }
   },
 

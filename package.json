@@ -17,6 +17,8 @@
     "dotenv": "^16.4.7",
     "ink": "^4.4.1",
     "ink-text-input": "^5.0.1",
+    "marked": "^15.0.12",
+    "marked-terminal": "7",
     "open": "^10.1.0",
     "react": "^18.3.1"
   },
