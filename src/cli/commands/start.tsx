@@ -140,7 +140,7 @@ function Prompt({ box, ip, agent, historyLen, boxDir, hostUp }: PromptProps) {
     if (hostUp) {
       log.ok(`Host ${ip} est up`);
     } else {
-      log.warn(`Host ${ip} ne répond pas au ping — box expirée ou VPN coupé ?`);
+      log.warn(`Host ${ip} ne répond pas (TCP 80/443/22/21) — box expirée ou VPN coupé ?`);
     }
     if (historyLen > 0) {
       log.info('Chargement du recap...');
@@ -287,10 +287,11 @@ function Prompt({ box, ip, agent, historyLen, boxDir, hostUp }: PromptProps) {
 }
 
 function checkHost(ip: string): boolean {
-  // TCP probe on common ports — ICMP ping is often blocked on HTB boxes
+  // TCP probe on common ports — ICMP ping is blocked on HTB boxes
+  // Use ncat with -4 to force IPv4 (HTB VPN is IPv4-only)
   for (const port of [80, 443, 22, 21]) {
     try {
-      execSync(`nc -z -w 2 ${ip} ${port}`, { stdio: 'ignore' });
+      execSync(`ncat -z -w 2 -4 ${ip} ${port}`, { stdio: 'ignore' });
       return true;
     } catch {
       // port closed or filtered, try next
