@@ -1,17 +1,17 @@
 <div align="center">
 
-# ClaudePwn
+<h1>ClaudePwn</h1>
 
-```
+<pre>
    _____ _                 _      _____
   / ____| |               | |    |  __ \
  | |    | | __ _ _   _  __| | ___| |__) |_      ___ __
  | |    | |/ _` | | | |/ _` |/ _ \  ___/\ \ /\ / / '_ \
  | |____| | (_| | |_| | (_| |  __/ |     \ V  V /| | | |
   \_____|_|\__,_|\__,_|\__,_|\___|_|      \_/\_/ |_| |_|
-```
+</pre>
 
-**Framework de hacking autonome propulsé par Claude.**
+<strong>Framework de hacking autonome propulsé par Claude.</strong>
 
 [![CI](https://github.com/scribelia-anthony/ClaudePwn/actions/workflows/ci.yml/badge.svg)](https://github.com/scribelia-anthony/ClaudePwn/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
