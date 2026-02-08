@@ -116,21 +116,23 @@ export function extractFindings(messages: Message[]): Findings {
     }
   }
 
-  // --- Flags HTB (32 hex chars) ---
+  // --- Flags HTB (32 hex chars) — only match with flag-related context ---
+  const FLAG_CONTEXT_WORDS = ['flag', 'user.txt', 'root.txt', '/root/', '/home/', 'cat ', 'proof'];
   const flagRegex = /\b([0-9a-f]{32})\b/gi;
   while ((match = flagRegex.exec(text)) !== null) {
     const value = match[1];
-    // Check context ±200 chars to determine user/root
-    const start = Math.max(0, match.index - 200);
-    const end = Math.min(text.length, match.index + 200);
+    const start = Math.max(0, match.index - 300);
+    const end = Math.min(text.length, match.index + 100);
     const context = text.slice(start, end).toLowerCase();
+
+    // Skip if no flag-related context (avoids matching random hashes/UUIDs)
+    if (!FLAG_CONTEXT_WORDS.some(w => context.includes(w))) continue;
 
     let type: 'user' | 'root' = 'user';
     if (context.includes('root.txt') || context.includes('/root/') || context.includes('root flag')) {
       type = 'root';
     }
 
-    // Avoid duplicates
     if (!findings.flags.some((f) => f.value === value)) {
       findings.flags.push({ type, value });
     }

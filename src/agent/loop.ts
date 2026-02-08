@@ -211,16 +211,32 @@ export class AgentLoop {
 
     const MAX_TURNS = 30;
     const MAX_ELAPSED_MS = 10 * 60 * 1000; // 10 minutes
+    const MIN_CALL_INTERVAL_MS = 500; // Minimum 500ms between API calls
     const startTime = Date.now();
     let turn = 0;
+    let lastCallTime = 0;
     while (turn < MAX_TURNS && Date.now() - startTime < MAX_ELAPSED_MS) {
       let response: Anthropic.Message;
+
+      // Rate limit: ensure minimum interval between API calls
+      const elapsed = Date.now() - lastCallTime;
+      if (elapsed < MIN_CALL_INTERVAL_MS) {
+        await new Promise(r => setTimeout(r, MIN_CALL_INTERVAL_MS - elapsed));
+      }
 
       setStatus(turn === 0 ? 'Réflexion...' : 'Analyse des résultats...');
 
       try {
+        lastCallTime = Date.now();
         response = await this.createMessage(system, tools);
       } catch (err: any) {
+        // Rate limit / overloaded — exponential backoff
+        if (err.status === 429 || err.status === 529) {
+          const delay = Math.min(2000 * Math.pow(2, turn), 30000);
+          log.warn(`Rate limit (${err.status}) — retry dans ${(delay / 1000).toFixed(0)}s...`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
         if (err.status === 401 || err.status === 403) {
           try {
             const tokens = await refreshTokens();

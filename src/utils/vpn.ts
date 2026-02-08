@@ -1,6 +1,9 @@
 import { spawn, execSync } from 'child_process';
 import { log } from './logger.js';
 
+// Track whether ClaudePwn started the VPN (don't kill user's own openvpn)
+let vpnStartedByUs = false;
+
 export function connectVPN(ovpnFile: string): Promise<void> {
   return new Promise((resolve, reject) => {
     log.info(`Connexion VPN avec ${ovpnFile}...`);
@@ -10,6 +13,7 @@ export function connectVPN(ovpnFile: string): Promise<void> {
 
     proc.on('close', (code) => {
       if (code === 0) {
+        vpnStartedByUs = true;
         // Wait for tun interface
         let attempts = 0;
         const check = setInterval(() => {
@@ -44,6 +48,16 @@ export function disconnectVPN(): void {
     log.warn('Pas de processus openvpn trouvé');
   }
 }
+
+/** Clean up VPN on exit — only if we started it */
+process.on('exit', () => {
+  if (!vpnStartedByUs) return;
+  try {
+    execSync('sudo killall openvpn 2>/dev/null', { stdio: 'ignore' });
+  } catch {
+    // Already dead — ignore
+  }
+});
 
 export function getVPNIP(): string | null {
   try {
