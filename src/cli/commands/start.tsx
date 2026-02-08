@@ -16,8 +16,9 @@ import { statusEmitter } from '../../utils/status.js';
 const COMPLETIONS = [
   'help', 'exit', 'quit', '/ask', 'status', 'browse',
   'scan box', 'scan ports', 'scan udp', 'scan vulns',
-  'enum web', 'inspect', 'enum smb', 'enum dns', 'enum ldap', 'enum snmp', 'enum users', 'enum vhosts',
-  'exploit search', 'exploit sqli', 'exploit xss', 'exploit lfi', 'exploit upload',
+  'enum web', 'inspect', 'enum ftp', 'enum smb', 'enum dns', 'enum vhosts', 'enum ldap', 'enum snmp', 'enum users',
+  'exploit search', 'exploit sqli', 'exploit lfi', 'exploit upload',
+  'shell ssh', 'shell reverse', 'shell upgrade',
   'crack hash', 'crack ssh', 'crack web',
   'privesc linux', 'privesc windows',
   'loot user', 'loot root', 'loot creds',
@@ -27,38 +28,47 @@ const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', 
 
 function showHelp(): void {
   emitLine(chalk.bold('\n  Commandes locales :\n'));
-  emitLine(chalk.white('  help, ?         ') + chalk.dim('Cette aide'));
-  emitLine(chalk.white('  status          ') + chalk.dim('Nombre de tâches en cours'));
-  emitLine(chalk.white('  browse /path    ') + chalk.dim('Ouvrir URL dans Chrome'));
-  emitLine(chalk.white('  exit, quit      ') + chalk.dim('Quitter (session sauvegardée)'));
-  emitLine(chalk.bold('\n  Commandes agent :\n'));
-  emitLine(chalk.white('  scan box        ') + chalk.dim('Recon complète (rustscan/nmap → searchsploit)'));
-  emitLine(chalk.white('  scan ports      ') + chalk.dim('Scan ports rapide'));
-  emitLine(chalk.white('  scan udp        ') + chalk.dim('Top 200 ports UDP'));
-  emitLine(chalk.white('  scan vulns      ') + chalk.dim('Scripts vulnérabilités nmap'));
-  emitLine(chalk.white('  enum web [path] ') + chalk.dim('Énumération web (curl, ffuf)'));
-  emitLine(chalk.white('  inspect /path   ') + chalk.dim('Lecture rapide d\'une URL (headers + body)'));
-  emitLine(chalk.white('  enum smb        ') + chalk.dim('Énumération SMB (smbclient, enum4linux)'));
-  emitLine(chalk.white('  enum dns        ') + chalk.dim('Zone transfer + subdomains'));
-  emitLine(chalk.white('  enum ldap       ') + chalk.dim('Dump LDAP'));
-  emitLine(chalk.white('  enum snmp       ') + chalk.dim('Community strings SNMP'));
-  emitLine(chalk.white('  enum users      ') + chalk.dim('Énumération utilisateurs'));
-  emitLine(chalk.white('  enum vhosts     ') + chalk.dim('Virtual hosts'));
-  emitLine(chalk.white('  exploit search  ') + chalk.dim('Chercher exploits (searchsploit)'));
-  emitLine(chalk.white('  exploit <cve>   ') + chalk.dim('Exploit spécifique'));
-  emitLine(chalk.white('  exploit sqli    ') + chalk.dim('Test SQL injection (sqlmap)'));
-  emitLine(chalk.white('  exploit lfi     ') + chalk.dim('Test LFI (traversal)'));
-  emitLine(chalk.white('  exploit upload  ') + chalk.dim('Upload webshell/reverse shell'));
-  emitLine(chalk.white('  crack hash      ') + chalk.dim('Crack hash (john/hashcat)'));
-  emitLine(chalk.white('  crack ssh [user]') + chalk.dim(' Brute force SSH (hydra)'));
-  emitLine(chalk.white('  crack web [url] ') + chalk.dim('Brute force formulaire web'));
-  emitLine(chalk.white('  privesc linux   ') + chalk.dim('Escalade de privilèges Linux'));
-  emitLine(chalk.white('  privesc windows ') + chalk.dim('Escalade de privilèges Windows'));
-  emitLine(chalk.white('  loot user/root  ') + chalk.dim('Récupérer les flags'));
-  emitLine(chalk.white('  loot creds      ') + chalk.dim('Dump credentials'));
-  emitLine(chalk.white('  /ask            ') + chalk.dim('Analyse détaillée + prochaines étapes'));
+  emitLine(chalk.white('  help, ?          ') + chalk.dim('Cette aide'));
+  emitLine(chalk.white('  status           ') + chalk.dim('Nombre de tâches en cours'));
+  emitLine(chalk.white('  browse /path     ') + chalk.dim('Ouvrir URL dans Chrome'));
+  emitLine(chalk.white('  1, 2, 3          ') + chalk.dim('Exécuter une étape proposée'));
+  emitLine(chalk.white('  exit, quit       ') + chalk.dim('Quitter (session sauvegardée)'));
+  emitLine(chalk.bold('\n  Scan :\n'));
+  emitLine(chalk.white('  scan box         ') + chalk.dim('Recon complète (ports + versions + exploits)'));
+  emitLine(chalk.white('  scan ports       ') + chalk.dim('Scan ports rapide'));
+  emitLine(chalk.white('  scan udp         ') + chalk.dim('Top 200 ports UDP'));
+  emitLine(chalk.white('  scan vulns       ') + chalk.dim('Scripts vulnérabilités nmap'));
+  emitLine(chalk.bold('\n  Enum :\n'));
+  emitLine(chalk.white('  enum web [/path] ') + chalk.dim('Fuzzing web (dirs + extensions)'));
+  emitLine(chalk.white('  inspect /path    ') + chalk.dim('Lecture rapide d\'une URL'));
+  emitLine(chalk.white('  enum ftp         ') + chalk.dim('Test login anonyme FTP'));
+  emitLine(chalk.white('  enum smb         ') + chalk.dim('Shares SMB (smbclient, enum4linux)'));
+  emitLine(chalk.white('  enum dns         ') + chalk.dim('Zone transfer'));
+  emitLine(chalk.white('  enum vhosts      ') + chalk.dim('Virtual hosts fuzzing'));
+  emitLine(chalk.white('  enum ldap        ') + chalk.dim('Dump LDAP'));
+  emitLine(chalk.white('  enum snmp        ') + chalk.dim('Community strings SNMP'));
+  emitLine(chalk.white('  enum users       ') + chalk.dim('Énumération utilisateurs'));
+  emitLine(chalk.bold('\n  Exploit :\n'));
+  emitLine(chalk.white('  exploit search   ') + chalk.dim('Chercher exploits (searchsploit)'));
+  emitLine(chalk.white('  exploit <cve>    ') + chalk.dim('Exploit spécifique'));
+  emitLine(chalk.white('  exploit sqli     ') + chalk.dim('SQL injection (sqlmap)'));
+  emitLine(chalk.white('  exploit lfi      ') + chalk.dim('LFI + wrappers PHP'));
+  emitLine(chalk.white('  exploit upload   ') + chalk.dim('Upload webshell/reverse shell'));
+  emitLine(chalk.bold('\n  Shell :\n'));
+  emitLine(chalk.white('  shell ssh <user> ') + chalk.dim('Connexion SSH'));
+  emitLine(chalk.white('  shell reverse    ') + chalk.dim('Écouter un reverse shell (nc)'));
+  emitLine(chalk.white('  shell upgrade    ') + chalk.dim('Upgrade vers shell interactif'));
+  emitLine(chalk.bold('\n  Crack / Privesc / Loot :\n'));
+  emitLine(chalk.white('  crack hash       ') + chalk.dim('Crack hash (john/hashcat)'));
+  emitLine(chalk.white('  crack ssh <user> ') + chalk.dim('Brute force SSH (hydra)'));
+  emitLine(chalk.white('  crack web <url>  ') + chalk.dim('Brute force formulaire web'));
+  emitLine(chalk.white('  privesc linux    ') + chalk.dim('Escalade de privilèges Linux'));
+  emitLine(chalk.white('  privesc windows  ') + chalk.dim('Escalade de privilèges Windows'));
+  emitLine(chalk.white('  loot user/root   ') + chalk.dim('Récupérer les flags'));
+  emitLine(chalk.white('  loot creds       ') + chalk.dim('Dump credentials'));
+  emitLine(chalk.white('  /ask             ') + chalk.dim('Analyse détaillée + prochaines étapes'));
   emitLine(chalk.bold('\n  L\'agent tourne en fond — tu peux taper pendant qu\'il travaille.'));
-  emitLine(chalk.dim('  1/2/3 = exécuter une étape proposée, Tab = autocomplétion, Ctrl+C = interrompre.\n'));
+  emitLine(chalk.dim('  Tab = autocomplétion, Ctrl+C = interrompre.\n'));
 }
 
 function StatusLine() {

