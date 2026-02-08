@@ -232,41 +232,50 @@ export async function executeExec(
       processChunk(stderrBuf, text);
     });
 
-    proc.on('close', (code) => {
-      clearTimeout(killTimer);
-      currentProc = null;
-      setStatus(null);
+    // Use 'exit' instead of 'close' — backgrounded children (nc, tail -f)
+    // keep pipes open after bash exits, which blocks 'close' forever.
+    proc.on('exit', (code) => {
+      // Grace period for remaining output to arrive through pipes
+      setTimeout(() => {
+        clearTimeout(killTimer);
+        currentProc = null;
+        setStatus(null);
 
-      // Flush remaining buffers
-      for (const buf of [stdoutBuf, stderrBuf]) {
-        if (buf.value.trim()) {
-          const crIdx = buf.value.lastIndexOf('\r');
-          const line = crIdx !== -1 ? buf.value.substring(crIdx + 1) : buf.value;
-          const clean = stripAnsi(line);
-          if (clean.trim() && !isProgressLine(line)) log.toolOutput(clean);
+        // Destroy pipes held open by backgrounded children
+        proc.stdout?.destroy();
+        proc.stderr?.destroy();
+
+        // Flush remaining buffers
+        for (const buf of [stdoutBuf, stderrBuf]) {
+          if (buf.value.trim()) {
+            const crIdx = buf.value.lastIndexOf('\r');
+            const line = crIdx !== -1 ? buf.value.substring(crIdx + 1) : buf.value;
+            const clean = stripAnsi(line);
+            if (clean.trim() && !isProgressLine(line)) log.toolOutput(clean);
+          }
         }
-      }
 
-      const elapsed = formatElapsed(Date.now() - startTime);
-      if (Date.now() - startTime > 3000) {
-        log.elapsed(elapsed);
-      }
+        const elapsed = formatElapsed(Date.now() - startTime);
+        if (Date.now() - startTime > 3000) {
+          log.elapsed(elapsed);
+        }
 
-      let result = stdout;
-      if (stderr && !stdout.includes(stderr)) {
-        result += '\n' + stderr;
-      }
-      if (killed) {
-        result += `\n[TIMEOUT after ${timeout || 300}s]`;
-      }
-      if (code !== 0 && code !== null) {
-        result += `\n[Exit code: ${code}]`;
-      }
-      // Truncate if too long
-      if (result.length > 50000) {
-        result = result.slice(0, 25000) + '\n\n[... truncated ...]\n\n' + result.slice(-25000);
-      }
-      resolve(result || '(no output)');
+        let result = stdout;
+        if (stderr && !stdout.includes(stderr)) {
+          result += '\n' + stderr;
+        }
+        if (killed) {
+          result += `\n[TIMEOUT after ${timeout || 300}s]`;
+        }
+        if (code !== 0 && code !== null) {
+          result += `\n[Exit code: ${code}]`;
+        }
+        // Truncate if too long
+        if (result.length > 50000) {
+          result = result.slice(0, 25000) + '\n\n[... truncated ...]\n\n' + result.slice(-25000);
+        }
+        resolve(result || '(no output)');
+      }, 500);
     });
 
     proc.on('error', (err) => {
