@@ -1,25 +1,21 @@
-<div align="center">
-
-<h1>ClaudePwn</h1>
-
-<pre>
+```
    _____ _                 _      _____
   / ____| |               | |    |  __ \
  | |    | | __ _ _   _  __| | ___| |__) |_      ___ __
  | |    | |/ _` | | | |/ _` |/ _ \  ___/\ \ /\ / / '_ \
  | |____| | (_| | |_| | (_| |  __/ |     \ V  V /| | | |
   \_____|_|\__,_|\__,_|\__,_|\___|_|      \_/\_/ |_| |_|
-</pre>
+```
 
+<p align="center">
 <strong>Framework de hacking autonome propulsé par Claude.</strong>
-
-[![CI](https://github.com/scribelia-anthony/ClaudePwn/actions/workflows/ci.yml/badge.svg)](https://github.com/scribelia-anthony/ClaudePwn/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-green.svg)](https://nodejs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](https://www.typescriptlang.org/)
-[![Claude Opus 4.6](https://img.shields.io/badge/LLM-Claude%20Opus%204.6-purple.svg)](https://anthropic.com)
-
-</div>
+<br><br>
+<a href="https://github.com/scribelia-anthony/ClaudePwn/actions/workflows/ci.yml"><img src="https://github.com/scribelia-anthony/ClaudePwn/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+<img src="https://img.shields.io/badge/Node.js-%3E%3D20-green.svg" alt="Node.js">
+<img src="https://img.shields.io/badge/TypeScript-strict-blue.svg" alt="TypeScript">
+<img src="https://img.shields.io/badge/LLM-Claude%20Opus%204.6-purple.svg" alt="Claude Opus 4.6">
+</p>
 
 Un CLI standalone qui utilise l'API Anthropic (Opus 4.6) pour enchaîner automatiquement reconnaissance, énumération, exploitation et post-exploitation sur des boxes HackTheBox / CTF.
 
