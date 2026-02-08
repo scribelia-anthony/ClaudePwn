@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import { execSync } from 'child_process';
 import { createSession, loadHistory } from '../../session/manager.js';
 import { addHost } from '../../utils/hosts.js';
+import { getVPNIP } from '../../utils/vpn.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { AgentLoop } from '../../agent/loop.js';
 import { interruptCurrentExec } from '../../agent/tools/exec.js';
@@ -318,12 +319,20 @@ function checkHost(ip: string): boolean {
 }
 
 export async function startCommand(box: string, ip: string): Promise<void> {
-  // Setup session (no output before Ink starts)
+  // Check VPN before anything else
+  const vpnIP = getVPNIP();
+  if (!vpnIP) {
+    console.error(`\x1b[31m[-] VPN non connecté — pas d'interface tun détectée.\x1b[0m`);
+    console.error(`\x1b[33m[*] Lance d'abord : claudepwn connect <fichier.ovpn>\x1b[0m`);
+    process.exit(1);
+  }
+
+  // Setup session
   const session = createSession(box, ip);
   addHost(ip, `${box.toLowerCase()}.htb`);
   const hostUp = checkHost(ip);
   if (!hostUp) {
-    console.error(`\x1b[33m[!] Host ${ip} ne répond pas — mode offline (analyse des anciens scans)\x1b[0m`);
+    console.error(`\x1b[33m[!] Host ${ip} ne répond pas (TCP 80/443/22/21) — box expirée ?\x1b[0m`);
   }
   const history = loadHistory(session.boxDir) as Anthropic.MessageParam[];
   const agent = new AgentLoop(box, ip, session.boxDir, history);
