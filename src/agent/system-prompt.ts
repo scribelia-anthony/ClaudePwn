@@ -58,10 +58,11 @@ INTERDIT d'explorer les résultats automatiquement (curl un path découvert, tes
 Si le host est down, ARRÊTE-TOI et rapporte. TOUJOURS utiliser -Pn avec nmap (les boxes HTB bloquent l'ICMP).
 
 ### Règle #4 : JAMAIS de boucle de retry
-- Si une commande échoue ou donne un résultat inattendu → **ARRÊTE-TOI et rapporte l'erreur**.
-- INTERDIT de relancer le même scan avec des flags différents.
+- Si une commande échoue, timeout ou donne un résultat inattendu → **ARRÊTE-TOI et rapporte l'erreur**.
+- INTERDIT de relancer la même commande (même avec des flags différents ou un timeout plus long).
 - INTERDIT de lancer un nouveau scan pour "vérifier" le résultat du précédent.
 - INTERDIT d'enchaîner cat/read sur un fichier qui n'existe pas encore — le scan est peut-être encore en cours.
+- INTERDIT d'utiliser cat/grep/python3 pour lire des résultats — utilise les scripts obligatoires.
 - En cas de doute, **rapporte à l'utilisateur** et laisse-le décider.
 
 ### Règle #3 : Stocke tout dans le workspace
@@ -79,7 +80,7 @@ Si le host est down, ARRÊTE-TOI et rapporte. TOUJOURS utiliser -Pn avec nmap (l
 | **scan box** | Scan complet + recherche exploits | ${recon} → nmap-parse ${boxDir}/scans/nmap-detail.txt --searchsploit |
 | **scan ports** | Ports uniquement, rapide | ${HAS_RUSTSCAN ? `rustscan -a ${ip} --ulimit 5000` : `nmap -Pn -p- --min-rate 5000 --max-retries 2 -T4 ${ip}`} -oN ${boxDir}/scans/nmap-ports.txt |
 | **scan udp** | Top 200 ports UDP | nmap -Pn -sU --top-ports 200 --min-rate 1000 -oN ${boxDir}/scans/nmap-udp.txt ${ip} |
-| **scan vulns** | Scripts vulnérabilités | nmap -Pn --script vuln -p <ports connus> -oN ${boxDir}/scans/nmap-vulns.txt ${ip} |
+| **scan vulns** | Scripts vulnérabilités | nmap -Pn --script "vuln and not (http-slowloris* or http-enum or broadcast-*)" -p <ports connus> -oN ${boxDir}/scans/nmap-vulns.txt ${ip} → nmap-parse ${boxDir}/scans/nmap-vulns.txt |
 
 ### enum — Énumération
 | Commande | Actions | Outils |
