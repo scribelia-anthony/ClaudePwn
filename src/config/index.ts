@@ -30,6 +30,14 @@ function ensureConfigDir(): void {
   }
 }
 
+/** Parse an int from env/config, returning defaultVal if invalid or out of range */
+function safeInt(envVal: string | undefined, fileVal: unknown, defaultVal: number, min: number, max: number): number {
+  const fromEnv = parseInt(envVal || '');
+  if (!isNaN(fromEnv) && fromEnv >= min && fromEnv <= max) return fromEnv;
+  if (typeof fileVal === 'number' && !isNaN(fileVal) && fileVal >= min && fileVal <= max) return fileVal;
+  return defaultVal;
+}
+
 export function getConfig(): Config {
   let fileConfig: Record<string, unknown> = {};
   if (existsSync(CONFIG_FILE)) {
@@ -39,12 +47,12 @@ export function getConfig(): Config {
   }
 
   return {
-    model: (process.env.CLAUDEPWN_MODEL as string) || (fileConfig.model as string) || 'claude-opus-4-6',
-    maxTokens: parseInt(process.env.CLAUDEPWN_MAX_TOKENS || '') || (fileConfig.maxTokens as number) || 16384,
-    execTimeout: parseInt(process.env.CLAUDEPWN_EXEC_TIMEOUT || '') || (fileConfig.execTimeout as number) || 300000,
-    compressionThreshold: parseInt(process.env.CLAUDEPWN_COMPRESSION_THRESHOLD || '') || (fileConfig.compressionThreshold as number) || 120000,
-    compressionKeepRecent: parseInt(process.env.CLAUDEPWN_COMPRESSION_KEEP_RECENT || '') || (fileConfig.compressionKeepRecent as number) || 10,
-    compressionModel: (process.env.CLAUDEPWN_COMPRESSION_MODEL as string) || (fileConfig.compressionModel as string) || 'claude-haiku-4-5-20251001',
+    model: (process.env.CLAUDEPWN_MODEL as string) || (typeof fileConfig.model === 'string' ? fileConfig.model : '') || 'claude-opus-4-6',
+    maxTokens: safeInt(process.env.CLAUDEPWN_MAX_TOKENS, fileConfig.maxTokens, 16384, 1024, 128000),
+    execTimeout: safeInt(process.env.CLAUDEPWN_EXEC_TIMEOUT, fileConfig.execTimeout, 300000, 5000, 3600000),
+    compressionThreshold: safeInt(process.env.CLAUDEPWN_COMPRESSION_THRESHOLD, fileConfig.compressionThreshold, 120000, 10000, 500000),
+    compressionKeepRecent: safeInt(process.env.CLAUDEPWN_COMPRESSION_KEEP_RECENT, fileConfig.compressionKeepRecent, 10, 2, 100),
+    compressionModel: (process.env.CLAUDEPWN_COMPRESSION_MODEL as string) || (typeof fileConfig.compressionModel === 'string' ? fileConfig.compressionModel : '') || 'claude-haiku-4-5-20251001',
   };
 }
 

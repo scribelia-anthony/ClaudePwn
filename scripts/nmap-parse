@@ -65,38 +65,50 @@ def print_table(ports, scripts):
             print(f"{'':>{pw}}  {sline}")
 
 
+SKIP_SERVICES = {'tcpwrapped', 'unknown', 'filtered'}
+NOISE_WORDS = {'-', 'httpd', 'or', 'later', 'and'}
+
 def run_searchsploit(ports):
     if not ports:
         return
 
     seen_terms = set()
     for port, service, version in ports:
+        if service in SKIP_SERVICES:
+            continue
         if not version:
             continue
         # Build search term: product + first version number found
-        # "Apache httpd 2.4.18 ((Ubuntu))" -> "Apache httpd 2.4.18"
+        # "Apache httpd 2.4.18 ((Ubuntu))" -> "Apache 2.4.18"
         # "OpenSSH 7.2p2 Ubuntu 4ubuntu2.2" -> "OpenSSH 7.2p2"
         # "Samba smbd 3.X - 4.X" -> "Samba 3"
         # "Werkzeug/2.0.1 Python/3.8.10" -> "Werkzeug 2.0.1"
+        # "Microsoft Windows RPC" -> "Microsoft Windows RPC" (no version, search as-is)
         cleaned = re.sub(r'[()]', '', version)       # strip parens
         cleaned = re.sub(r'/(\d)', r' \1', cleaned)  # Werkzeug/2.0 -> Werkzeug 2.0
         parts = cleaned.split()
 
         # Collect product words until we hit a version number
         term_parts = []
+        has_version = False
         for p in parts:
             if re.match(r'^\d', p):
                 # version found — take major version
                 ver = re.match(r'[\d]+\.?[\w.]*', p)
                 if ver:
                     term_parts.append(ver.group())
+                    has_version = True
                 break
-            if p in ('-', 'httpd'):
+            if p.lower() in NOISE_WORDS:
                 continue  # skip noise
             term_parts.append(p)
 
+        # Cap product-only terms (no version) to 3 words max to avoid overly broad searches
+        if not has_version and len(term_parts) > 3:
+            term_parts = term_parts[:3]
+
         term = ' '.join(term_parts)
-        if not term or term in seen_terms:
+        if not term or len(term) < 3 or term in seen_terms:
             continue
         seen_terms.add(term)
 

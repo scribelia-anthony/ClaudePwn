@@ -4,17 +4,30 @@ import json
 import sys
 
 def parse(path):
-    with open(path) as f:
-        data = json.load(f)
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"Erreur: JSON invalide dans {path}: {e}")
+        return
+    except FileNotFoundError:
+        print(f"Erreur: fichier introuvable: {path}")
+        return
+
+    if not isinstance(data, dict):
+        print(f"Erreur: format inattendu (attendu objet JSON, reçu {type(data).__name__})")
+        return
 
     results = data.get("results", [])
-    if not results:
+    if not isinstance(results, list) or not results:
         print("Aucun résultat.")
         return
 
     # Group by status code
     by_status = {}
     for r in results:
+        if not isinstance(r, dict):
+            continue
         fuzz = r.get("input", {}).get("FUZZ", "")
         if not fuzz or fuzz.startswith("#"):
             continue

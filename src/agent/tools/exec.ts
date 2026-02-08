@@ -57,9 +57,9 @@ export function interruptCurrentExec(): boolean {
   return false;
 }
 
-// Strip ANSI escape codes (colors, bold, etc.) — tools like rustscan ignore TERM=dumb
+// Strip all ANSI escape sequences (SGR, CSI, OSC, DCS, etc.)
 function stripAnsi(str: string): string {
-  return str.replace(/\x1b\[[0-9;]*m/g, '');
+  return str.replace(/\x1b(?:\[[0-9;?]*[A-Za-z]|\].*?(?:\x07|\x1b\\)|\([A-Z])/g, '');
 }
 
 /** Extract a short progress string for the status line, or null if not a progress line */

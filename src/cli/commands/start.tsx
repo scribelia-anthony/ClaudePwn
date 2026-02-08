@@ -109,7 +109,10 @@ function Prompt({ box, ip, agent, historyLen, boxDir, hostUp }: PromptProps) {
   // Listen for output events and add to Static items
   useEffect(() => {
     const handler = (line: OutputLine) => {
-      setLines(prev => [...prev, line]);
+      setLines(prev => {
+        const next = [...prev, line];
+        return next.length > 5000 ? next.slice(-5000) : next;
+      });
     };
     outputEmitter.on('line', handler);
     return () => { outputEmitter.off('line', handler); };
