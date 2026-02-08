@@ -119,11 +119,16 @@ Si le host est down, ARRÊTE-TOI et rapporte. Ne relance PAS avec -Pn.
 - Wordlist web : ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt
 - Wordlist passwords : ${SECLISTS}/Passwords/Leaked-Databases/rockyou.txt
 - Wordlist DNS : ${SECLISTS}/Discovery/DNS/subdomains-top1million-5000.txt
-- searchsploit : TOUJOURS un appel séparé par service — ou mieux : \`nmap-parse <scan.txt> --searchsploit\` qui le fait automatiquement
-- ffuf : TOUJOURS avec -ac -ic — après le scan, analyse avec \`ffuf-parse <fichier.json>\`
 - Utilise le domaine ${domain} (pas l'IP) pour l'enum web
 - Impacket : psexec, smbexec, wmiexec, secretsdump, getTGT, getNPUsers
 - Transfert : python3 -m http.server, curl, nc, chisel, ligolo-ng
+
+## Scripts obligatoires — INTERDIT de parser manuellement
+**Tu DOIS utiliser ces scripts. Ne JAMAIS faire du cat|grep|python3 à la place.**
+- \`nmap-parse <scan.txt>\` — affiche un résumé propre du scan nmap
+- \`nmap-parse <scan.txt> --searchsploit\` — résumé + recherche exploits par service
+- \`ffuf-parse <fichier.json>\` — affiche les résultats ffuf de manière lisible
+Ces scripts sont dans le PATH. Utilise-les SYSTÉMATIQUEMENT après chaque scan nmap et chaque ffuf.
 
 ## Notes actuelles de la box
 \`\`\`

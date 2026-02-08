@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from 'child_process';
 import { appendFileSync } from 'fs';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { log } from '../../utils/logger.js';
 import { getConfig } from '../../config/index.js';
 import { setStatus } from '../../utils/status.js';
@@ -157,7 +157,11 @@ export async function executeExec(
 
     const proc = spawn('bash', ['-c', command], {
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, TERM: 'dumb' },
+      env: {
+        ...process.env,
+        TERM: 'dumb',
+        PATH: `${resolve('scripts')}:${process.env.PATH}`,
+      },
       detached: true,
     });
 
