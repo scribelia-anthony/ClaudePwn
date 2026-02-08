@@ -114,7 +114,7 @@ export async function executeExec(
     const startTime = Date.now();
 
     const proc = spawn('bash', ['-c', command], {
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, TERM: 'dumb' },
     });
 
