@@ -17,7 +17,7 @@ const COMPLETIONS = [
   'help', 'exit', 'quit', '/ask', 'status',
   'scan box', 'scan ports', 'scan udp', 'scan vulns',
   'enum web', 'enum smb', 'enum dns', 'enum ldap', 'enum snmp', 'enum users', 'enum vhosts',
-  'exploit sqli', 'exploit xss', 'exploit lfi', 'exploit upload',
+  'exploit search', 'exploit sqli', 'exploit xss', 'exploit lfi', 'exploit upload',
   'crack hash', 'crack ssh', 'crack web',
   'privesc linux', 'privesc windows',
   'loot user', 'loot root', 'loot creds',
@@ -42,6 +42,7 @@ function showHelp(): void {
   emitLine(chalk.white('  enum snmp       ') + chalk.dim('Community strings SNMP'));
   emitLine(chalk.white('  enum users      ') + chalk.dim('Énumération utilisateurs'));
   emitLine(chalk.white('  enum vhosts     ') + chalk.dim('Virtual hosts'));
+  emitLine(chalk.white('  exploit search  ') + chalk.dim('Chercher exploits (searchsploit)'));
   emitLine(chalk.white('  exploit <cve>   ') + chalk.dim('Exploit spécifique'));
   emitLine(chalk.white('  exploit sqli    ') + chalk.dim('Test SQL injection (sqlmap)'));
   emitLine(chalk.white('  exploit lfi     ') + chalk.dim('Test LFI (traversal)'));

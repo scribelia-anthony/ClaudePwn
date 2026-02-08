@@ -88,6 +88,7 @@ Si le host est down, ARRÊTE-TOI et rapporte. Ne relance PAS avec -Pn.
 ### exploit — Exploitation
 | Commande | Actions | Outils |
 |----------|---------|--------|
+| **exploit search [terme]** | Chercher exploits connus | searchsploit <terme> |
 | **exploit sqli [url]** | Test SQL injection | sqlmap -u <url> --batch --forms |
 | **exploit xss [url]** | Test XSS | dalfox url <url> ou test manuel avec payloads courants |
 | **exploit lfi [url]** | Test LFI | curl avec traversal payloads (/etc/passwd, etc.) |
