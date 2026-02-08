@@ -123,11 +123,17 @@ export async function compressHistory(
   const keepRecent = config.compressionKeepRecent;
 
   const estimated = estimateTokens(messages);
-  if (estimated < threshold) {
+  const MAX_MESSAGES = 50; // Also compress if too many messages (API overhead per message)
+  const needsCompression = estimated >= threshold || messages.length > MAX_MESSAGES;
+
+  if (!needsCompression) {
     return messages;
   }
 
-  log.info(`Historique estimé à ~${estimated} tokens (seuil: ${threshold}). Compression en cours...`);
+  const reason = messages.length > MAX_MESSAGES
+    ? `${messages.length} messages (max: ${MAX_MESSAGES})`
+    : `~${estimated} tokens (seuil: ${threshold})`;
+  log.info(`Compression: ${reason}. En cours...`);
 
   // Backup before compression
   try {
@@ -145,6 +151,28 @@ export async function compressHistory(
 
   if (oldMessages.length === 0) {
     return messages;
+  }
+
+  const truncated = (): Message[] => {
+    log.ok(`Historique tronqué: ${oldMessages.length} anciens messages supprimés, ${recentMessages.length} conservés.`);
+    return [
+      {
+        role: 'user' as const,
+        content: `[Historique tronqué — ${oldMessages.length} anciens messages supprimés. Consulte notes.md pour le contexte complet.]`,
+      },
+      {
+        role: 'assistant' as const,
+        content: 'Compris. Je me base sur notes.md pour le contexte.',
+      },
+      ...recentMessages,
+    ];
+  };
+
+  // If history is very large (>100 messages), skip LLM compression entirely
+  // to avoid hitting rate limits on the compression call too
+  if (messages.length > 100) {
+    log.warn(`Historique trop volumineux (${messages.length} messages) — troncature directe sans LLM.`);
+    return truncated();
   }
 
   const serialized = serializeForSummary(oldMessages);
@@ -166,7 +194,7 @@ Sois concis mais ne perds AUCUNE info technique (usernames, chemins, ports, vers
       4096,
     );
 
-    log.ok(`Historique compressé: ${oldMessages.length} messages → résumé`);
+    log.ok(`Historique compressé: ${oldMessages.length} messages → résumé LLM`);
 
     return [
       {
@@ -180,18 +208,7 @@ Sois concis mais ne perds AUCUNE info technique (usernames, chemins, ports, vers
       ...recentMessages,
     ];
   } catch (err: any) {
-    log.warn(`Compression LLM échouée: ${err.message}. Troncature brute de l'historique.`);
-    // Fallback: keep only recent messages to avoid infinite rate limit loops
-    return [
-      {
-        role: 'user' as const,
-        content: `[Historique tronqué — ${oldMessages.length} anciens messages supprimés. Consulte notes.md pour le contexte complet.]`,
-      },
-      {
-        role: 'assistant' as const,
-        content: 'Compris. Je me base sur notes.md pour le contexte.',
-      },
-      ...recentMessages,
-    ];
+    log.warn(`Compression LLM échouée: ${err.message}`);
+    return truncated();
   }
 }
