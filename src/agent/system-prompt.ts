@@ -74,7 +74,7 @@ Wordlist web par défaut : ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-
 **Recon** : ${HAS_RUSTSCAN
   ? `rustscan EST installé — utilise-le : rustscan -a ${ip} --ulimit 5000 -- -sC -sV -oN ${boxDir}/scans/nmap-detail.txt`
   : `rustscan non disponible — utilise nmap en 2 phases : nmap -p- --min-rate 5000 --max-retries 2 -T4 -oN ${boxDir}/scans/nmap-ports.txt ${ip} puis nmap -sC -sV -p <ports> -oN ${boxDir}/scans/nmap-detail.txt ${ip}`}
-**Web** : Utilise le domaine ${box.toLowerCase()}.htb (pas l'IP) pour l'enum web (vhosts). curl -sI http://${box.toLowerCase()}.htb (headers) + curl -s http://${box.toLowerCase()}.htb (body/commentaires HTML) + ffuf -u http://${box.toLowerCase()}.htb/FUZZ -w ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt -o ${boxDir}/scans/ffuf.json
+**Web** : Utilise le domaine ${box.toLowerCase()}.htb (pas l'IP) pour l'enum web (vhosts). curl -sI http://${box.toLowerCase()}.htb (headers) + curl -s http://${box.toLowerCase()}.htb (body/commentaires HTML) + ffuf -u http://${box.toLowerCase()}.htb/FUZZ -w ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt -ac -o ${boxDir}/scans/ffuf.json (TOUJOURS utiliser -ac pour auto-calibrer et filtrer les faux positifs)
 **SMB** : smbclient -L //${ip}/ -N, enum4linux -a ${ip}
 **Exploit** : searchsploit (TOUJOURS un appel séparé par service : \`searchsploit OpenSSH 7.2p2; searchsploit Apache 2.4.18\` — JAMAIS \`searchsploit "terme1" "terme2"\` car ça fait un AND et retourne rien), msfconsole, sqlmap, hydra
 **Post-Exploit** : linpeas.sh, winpeas.exe, pspy64, bloodhound-python

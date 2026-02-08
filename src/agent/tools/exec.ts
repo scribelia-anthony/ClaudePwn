@@ -44,9 +44,10 @@ function stripAnsi(str: string): string {
 function isProgressLine(raw: string): boolean {
   const line = stripAnsi(raw);
   if (!line.trim()) return true;
-  // ffuf progress
+  // ffuf progress + config
   if (/:: Progress:/.test(line)) return true;
   if (/\d+\/\d+\]\s*::\s*Job\s*\[/.test(line) && !/\[Status:/.test(line)) return true;
+  if (/^\s*:: \w/.test(line)) return true;
   // nmap verbose noise
   if (/^Stats:\s/.test(line)) return true;
   if (/^Connect Scan Timing:/.test(line)) return true;
