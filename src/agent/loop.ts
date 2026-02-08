@@ -260,17 +260,16 @@ export class AgentLoop {
         break;
       }
 
-      // Execute tools in parallel when multiple are requested
-      const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
-        toolUseBlocks.map(async (tool) => {
-          const result = await executeTool(tool.name, tool.input, this.boxDir);
-          return {
-            type: 'tool_result' as const,
-            tool_use_id: tool.id,
-            content: result,
-          };
-        }),
-      );
+      // Execute tools sequentially — commands often depend on previous results
+      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+      for (const tool of toolUseBlocks) {
+        const result = await executeTool(tool.name, tool.input, this.boxDir);
+        toolResults.push({
+          type: 'tool_result' as const,
+          tool_use_id: tool.id,
+          content: result,
+        });
+      }
 
       // Include pending user messages with tool results if any
       if (this.pendingMessages.length > 0) {
