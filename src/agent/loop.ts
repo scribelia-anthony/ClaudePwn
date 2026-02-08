@@ -220,6 +220,8 @@ export class AgentLoop {
     const startTime = Date.now();
     let turn = 0;
     let lastCallTime = 0;
+    let rateLimitRetries = 0;
+    const MAX_RATE_LIMIT_RETRIES = 5;
     while (turn < MAX_TURNS && Date.now() - startTime < MAX_ELAPSED_MS) {
       let response: Anthropic.Message;
 
@@ -229,16 +231,22 @@ export class AgentLoop {
         await new Promise(r => setTimeout(r, MIN_CALL_INTERVAL_MS - elapsed));
       }
 
-      setStatus(turn === 0 ? 'Réflexion...' : 'Analyse des résultats...');
+      setStatus(turn === 0 ? 'Réflexion...' : rateLimitRetries > 0 ? `Rate limit — retry ${rateLimitRetries}/${MAX_RATE_LIMIT_RETRIES}...` : 'Analyse des résultats...');
 
       try {
         lastCallTime = Date.now();
         response = await this.createMessage(system, tools);
+        rateLimitRetries = 0; // Reset on success
       } catch (err: any) {
-        // Rate limit / overloaded — exponential backoff
+        // Rate limit / overloaded — exponential backoff with own counter
         if (err.status === 429 || err.status === 529) {
-          const delay = Math.min(2000 * Math.pow(2, turn), 30000);
-          log.warn(`Rate limit (${err.status}) — retry dans ${(delay / 1000).toFixed(0)}s...`);
+          rateLimitRetries++;
+          if (rateLimitRetries > MAX_RATE_LIMIT_RETRIES) {
+            log.error(`Rate limit: ${MAX_RATE_LIMIT_RETRIES} retries échoués. Arrêt.`);
+            break;
+          }
+          const delay = Math.min(2000 * Math.pow(2, rateLimitRetries), 60000);
+          log.warn(`Rate limit (${err.status}) — retry ${rateLimitRetries}/${MAX_RATE_LIMIT_RETRIES} dans ${(delay / 1000).toFixed(0)}s...`);
           await new Promise(r => setTimeout(r, delay));
           continue;
         }
