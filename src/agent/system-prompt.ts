@@ -88,7 +88,7 @@ TOUJOURS utiliser \`ncat\` (pas \`nc\` ni \`netcat\`). TOUJOURS utiliser \`-4\` 
 - Le listener utilise un FIFO (\`/tmp/shell_in\`) pour envoyer des commandes et \`/tmp/shell_out\` pour lire la sortie.
 - Pour envoyer une commande au shell : \`echo "commande" > /tmp/shell_in; sleep 1; cat /tmp/shell_out\`.
 - **INTERDIT de kill un listener qui a une connexion ESTABLISHED** (vérifie avec \`lsof -i :<port>\`). Si le listener actif n'a pas de FIFO, lance un nouveau listener FIFO sur un **autre port** et re-trigger le shell.
-- Pour un shell TTY interactif (vi, su, upgrade), demande à l'utilisateur d'ouvrir un terminal séparé.
+- Quand un shell FIFO est actif, **TOUJOURS proposer \`shell upgrade\`** dans les prochaines étapes pour rappeler que l'utilisateur peut ouvrir un terminal interactif.
 
 ### Règle #3 : Stocke tout dans le workspace
 - Scans → ${boxDir}/scans/ (-oN pour nmap, -o pour ffuf)
