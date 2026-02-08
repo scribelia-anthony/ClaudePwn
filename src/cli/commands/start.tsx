@@ -14,7 +14,7 @@ import { statusEmitter } from '../../utils/status.js';
 
 // Tab completions
 const COMPLETIONS = [
-  'help', 'exit', 'quit', '/ask', 'status',
+  'help', 'exit', 'quit', '/ask', 'status', 'browse',
   'scan box', 'scan ports', 'scan udp', 'scan vulns',
   'enum web', 'inspect', 'enum smb', 'enum dns', 'enum ldap', 'enum snmp', 'enum users', 'enum vhosts',
   'exploit search', 'exploit sqli', 'exploit xss', 'exploit lfi', 'exploit upload',
@@ -29,6 +29,7 @@ function showHelp(): void {
   emitLine(chalk.bold('\n  Commandes locales :\n'));
   emitLine(chalk.white('  help, ?         ') + chalk.dim('Cette aide'));
   emitLine(chalk.white('  status          ') + chalk.dim('Nombre de tâches en cours'));
+  emitLine(chalk.white('  browse /path    ') + chalk.dim('Ouvrir URL dans Chrome'));
   emitLine(chalk.white('  exit, quit      ') + chalk.dim('Quitter (session sauvegardée)'));
   emitLine(chalk.bold('\n  Commandes agent :\n'));
   emitLine(chalk.white('  scan box        ') + chalk.dim('Recon complète (rustscan/nmap → searchsploit)'));
@@ -179,6 +180,22 @@ function Prompt({ box, ip, agent, historyLen, boxDir, hostUp }: PromptProps) {
         log.info('Agent en cours');
       } else {
         log.ok('Aucune tâche en cours.');
+      }
+      return;
+    }
+
+    if (trimmed === 'browse' || trimmed.startsWith('browse ')) {
+      const path = trimmed.slice(6).trim() || '/';
+      const domain = box.toLowerCase() + '.htb';
+      const url = `http://${domain}${path.startsWith('/') ? path : '/' + path}`;
+      try {
+        const cmd = process.platform === 'darwin'
+          ? `open -a "Google Chrome" "${url}"`
+          : `xdg-open "${url}"`;
+        execSync(cmd, { stdio: 'ignore' });
+        log.ok(`Ouvert : ${url}`);
+      } catch {
+        log.error(`Impossible d'ouvrir ${url}`);
       }
       return;
     }

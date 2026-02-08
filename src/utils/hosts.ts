@@ -2,6 +2,16 @@ import { execSync } from 'child_process';
 import { readFileSync } from 'fs';
 import { log } from './logger.js';
 
+function flushDNS(): void {
+  try {
+    if (process.platform === 'darwin') {
+      execSync('sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder', { stdio: 'ignore' });
+    }
+  } catch {
+    // Non-critical — ignore
+  }
+}
+
 export function addHost(ip: string, hostname: string): void {
   const hosts = readFileSync('/etc/hosts', 'utf-8');
   const existingLine = hosts.split('\n').find(l => l.includes(hostname));
@@ -12,6 +22,7 @@ export function addHost(ip: string, hostname: string): void {
     try {
       execSync(`sudo sed -i '' '/${hostname}/d' /etc/hosts`, { stdio: 'inherit' });
       execSync(`echo "${ip} ${hostname}" | sudo tee -a /etc/hosts > /dev/null`, { stdio: 'inherit' });
+      flushDNS();
     } catch {
       console.log(`[!] Impossible de modifier /etc/hosts`);
     }
@@ -21,6 +32,7 @@ export function addHost(ip: string, hostname: string): void {
   console.log(`[*] Ajout de ${ip} ${hostname} à /etc/hosts (sudo requis)`);
   try {
     execSync(`echo "${ip} ${hostname}" | sudo tee -a /etc/hosts > /dev/null`, { stdio: 'inherit' });
+    flushDNS();
   } catch {
     console.log(`[!] Impossible d'ajouter à /etc/hosts`);
   }

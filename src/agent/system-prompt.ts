@@ -87,6 +87,7 @@ Si le host est down, ARRÊTE-TOI et rapporte. Ne relance PAS avec -Pn.
 | **enum web** | Headers + body + ffuf sur / | curl -sI http://${domain} + curl -s http://${domain} + ffuf -u http://${domain}/FUZZ -w ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt -ac -ic -o ${boxDir}/scans/ffuf.json |
 | **enum web /path/** | ffuf sur un path spécifique | curl -s http://${domain}/path/ + ffuf -u http://${domain}/path/FUZZ -w ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt -ac -ic -o ${boxDir}/scans/ffuf-path.json |
 | **inspect /path** | Lecture rapide d'une URL (pas de fuzzing) | curl -sI http://${domain}/path + curl -s http://${domain}/path |
+| **browse /path** | Ouvrir une URL dans Chrome | Commande locale — ouvre http://${domain}/path dans le navigateur |
 | **enum smb** | Shares + énumération | smbclient -L //${ip}/ -N + enum4linux -a ${ip} |
 | **enum dns** | Zone transfer + subdomains | dig axfr ${domain} @${ip} + ffuf -u http://${ip} -H "Host: FUZZ.${domain}" -w ${SECLISTS}/Discovery/DNS/subdomains-top1million-5000.txt -ac -ic |
 | **enum ldap** | Dump LDAP | ldapsearch -x -H ldap://${ip} -b "" -s base namingContexts + ldapsearch -x -H ldap://${ip} -b "<base>" |
