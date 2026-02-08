@@ -302,12 +302,16 @@ function Prompt({ box, ip, agent, historyLen, boxDir, hostUp }: PromptProps) {
 function checkHost(ip: string): boolean {
   // TCP probe on common ports — ICMP ping is blocked on HTB boxes
   // Use ncat with -4 to force IPv4 (HTB VPN is IPv4-only)
-  for (const port of [80, 443, 22, 21]) {
-    try {
-      execSync(`ncat -z -w 2 -4 ${ip} ${port}`, { stdio: 'ignore' });
-      return true;
-    } catch {
-      // port closed or filtered, try next
+  // Two passes: fast (2s) then slow (5s) to balance speed vs reliability
+  const ports = [80, 443, 22, 21];
+  for (const timeout of [2, 5]) {
+    for (const port of ports) {
+      try {
+        execSync(`ncat -z -w ${timeout} -4 ${ip} ${port}`, { stdio: 'ignore' });
+        return true;
+      } catch {
+        // port closed or filtered, try next
+      }
     }
   }
   return false;

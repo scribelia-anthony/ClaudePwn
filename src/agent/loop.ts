@@ -10,6 +10,7 @@ import { log } from '../utils/logger.js';
 import { setStatus } from '../utils/status.js';
 import { compressHistory } from './compress.js';
 import { extractFindings, updateNotes } from './extract.js';
+import { MemoryStore } from './memory.js';
 
 type Message = Anthropic.MessageParam;
 type ContentBlock = Anthropic.ContentBlock;
@@ -109,12 +110,27 @@ export class AgentLoop {
   private config = getConfig();
   private useOAuth = false;
   private pendingMessages: string[] = [];
+  private memory: MemoryStore;
 
   constructor(box: string, ip: string, boxDir: string, history: Message[] = []) {
     this.box = box;
     this.ip = ip;
     this.boxDir = boxDir;
     this.messages = history;
+
+    // Initialize RAG memory
+    this.memory = new MemoryStore(boxDir);
+    this.memory.load();
+
+    // Bootstrap: if memory is empty and history is small enough (won't be compressed),
+    // index it now. Large histories will be indexed by compressHistory() instead.
+    if (this.memory.size() === 0 && history.length > 0 && history.length <= 50) {
+      const indexed = this.memory.indexMessages(history);
+      if (indexed > 0) {
+        this.memory.save();
+        log.info(`Mémoire bootstrappée: ${indexed} chunks indexés`);
+      }
+    }
   }
 
   /**
@@ -181,7 +197,11 @@ export class AgentLoop {
       : '';
     this.messages.push({ role: 'user', content: userInput + fifoHint });
 
-    const system = buildSystemPrompt(this.box, this.ip, this.boxDir);
+    // RAG: search memory for relevant context
+    const relevantChunks = this.memory.search(userInput);
+    const ragContext = this.memory.formatRAGContext(relevantChunks);
+
+    const system = buildSystemPrompt(this.box, this.ip, this.boxDir, ragContext);
     const tools = getAllTools();
 
     // Compress history if it exceeds the token threshold
@@ -210,6 +230,7 @@ export class AgentLoop {
         const textBlock = response.content.find((b) => b.type === 'text');
         return textBlock && 'text' in textBlock ? (textBlock as any).text : '';
       },
+      this.memory,
     );
 
     const messageCountBefore = this.messages.length;
@@ -325,6 +346,15 @@ export class AgentLoop {
     }
 
     setStatus(null);
+
+    // Index new messages into RAG memory
+    try {
+      const newMessages = this.messages.slice(messageCountBefore);
+      const indexed = this.memory.indexMessages(newMessages);
+      if (indexed > 0) this.memory.save();
+    } catch (err: any) {
+      log.warn(`Indexation mémoire RAG échouée: ${err.message}`);
+    }
 
     // Auto-extract findings from new messages and update notes.md
     try {

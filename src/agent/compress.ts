@@ -3,6 +3,7 @@ import { writeFileSync } from 'fs';
 import { join } from 'path';
 import { log } from '../utils/logger.js';
 import { getConfig } from '../config/index.js';
+import type { MemoryStore } from './memory.js';
 
 type Message = Anthropic.MessageParam;
 
@@ -99,6 +100,41 @@ function serializeForSummary(messages: Message[]): string {
   return lines.join('\n');
 }
 
+/**
+ * Truncate tool_result content in messages to reduce input tokens.
+ * Keeps first 800 and last 400 chars of large results.
+ */
+function truncateToolResults(messages: Message[], maxLen = 1200): Message[] {
+  return messages.map(msg => {
+    if (!Array.isArray(msg.content)) return msg;
+
+    const newContent = msg.content.map(block => {
+      if (block.type !== 'tool_result') return block;
+      const b = block as any;
+      const content = b.content;
+
+      if (typeof content === 'string') {
+        const clean = stripAnsi(content);
+        if (clean.length <= maxLen) return { ...b, content: clean };
+        return { ...b, content: clean.slice(0, 800) + '\n[… tronqué …]\n' + clean.slice(-400) };
+      }
+
+      if (Array.isArray(content)) {
+        const text = content
+          .map((c: any) => typeof c === 'string' ? c : c?.text || '')
+          .join('\n');
+        const clean = stripAnsi(text);
+        if (clean.length <= maxLen) return { ...b, content: clean };
+        return { ...b, content: clean.slice(0, 800) + '\n[… tronqué …]\n' + clean.slice(-400) };
+      }
+
+      return block;
+    });
+
+    return { ...msg, content: newContent };
+  });
+}
+
 export type CallApiFn = (
   model: string,
   system: string,
@@ -117,6 +153,7 @@ export async function compressHistory(
   ip: string,
   boxDir: string,
   callApi: CallApiFn,
+  memory?: MemoryStore,
 ): Promise<Message[]> {
   const config = getConfig();
   const threshold = config.compressionThreshold;
@@ -153,8 +190,24 @@ export async function compressHistory(
     return messages;
   }
 
+  // Index old messages into RAG memory before they are dropped
+  if (memory) {
+    try {
+      const indexed = memory.indexMessages(oldMessages);
+      memory.save();
+      if (indexed > 0) {
+        log.info(`Mémoire RAG: ${indexed} chunks indexés avant compression.`);
+      }
+    } catch (err: any) {
+      log.warn(`Indexation mémoire RAG échouée: ${err.message}`);
+    }
+  }
+
   const truncated = (): Message[] => {
-    log.ok(`Historique tronqué: ${oldMessages.length} anciens messages supprimés, ${recentMessages.length} conservés.`);
+    const slimRecent = truncateToolResults(recentMessages);
+    const beforeTokens = estimateTokens(recentMessages);
+    const afterTokens = estimateTokens(slimRecent);
+    log.ok(`Historique tronqué: ${oldMessages.length} anciens messages supprimés, ${slimRecent.length} conservés (${beforeTokens}→${afterTokens} tokens).`);
     return [
       {
         role: 'user' as const,
@@ -164,7 +217,7 @@ export async function compressHistory(
         role: 'assistant' as const,
         content: 'Compris. Je me base sur notes.md pour le contexte.',
       },
-      ...recentMessages,
+      ...slimRecent,
     ];
   };
 
@@ -205,7 +258,7 @@ Sois concis mais ne perds AUCUNE info technique (usernames, chemins, ports, vers
         role: 'assistant',
         content: 'Compris. J\'ai intégré le résumé de notre conversation précédente. Je continue avec le contexte complet.',
       },
-      ...recentMessages,
+      ...truncateToolResults(recentMessages),
     ];
   } catch (err: any) {
     log.warn(`Compression LLM échouée: ${err.message}`);

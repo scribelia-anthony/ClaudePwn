@@ -45,8 +45,9 @@ export function buildProgram(): Command {
   program
     .command('login')
     .description('Authentification OAuth avec Claude')
-    .action(async () => {
-      await loginCommand();
+    .option('-f, --force', 'Forcer re-authentification (changer de compte)')
+    .action(async (opts: { force?: boolean }) => {
+      await loginCommand(!!opts.force);
     });
 
   return program;

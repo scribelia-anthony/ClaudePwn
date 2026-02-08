@@ -37,7 +37,7 @@ function getTerminalCmd(cmd: string): string {
   return `x-terminal-emulator -e bash -c '${cmd}; exec bash'`;
 }
 
-export function buildSystemPrompt(box: string, ip: string, boxDir: string): string {
+export function buildSystemPrompt(box: string, ip: string, boxDir: string, ragContext: string = ''): string {
   const notes = readNotes(boxDir);
 
   const domain = box.toLowerCase() + '.htb';
@@ -199,7 +199,7 @@ Ces scripts sont dans le PATH. Utilise-les SYSTÉMATIQUEMENT après chaque scan 
 \`\`\`
 ${notes}
 \`\`\`
-
+${ragContext ? '\n' + ragContext + '\n' : ''}
 ## Outils disponibles
 - Bash : commandes système
 - Write : sauvegarder notes/exploits

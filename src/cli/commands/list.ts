@@ -1,12 +1,11 @@
 import chalk from 'chalk';
 import { listBoxes } from '../../session/manager.js';
-import { log } from '../../utils/logger.js';
 
 export function listCommand(): void {
   const boxes = listBoxes();
 
   if (boxes.length === 0) {
-    log.info('Aucune box. Lance `claudepwn start <box> <ip>` pour commencer.');
+    console.log(chalk.blue('[*]') + ' Aucune box. Lance `claudepwn start <box> <ip>` pour commencer.');
     return;
   }
 
