@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from 'child_process';
 import { appendFileSync } from 'fs';
-import { join, resolve } from 'path';
+import { join, resolve as pathResolve } from 'path';
 import { log } from '../../utils/logger.js';
 import { getConfig } from '../../config/index.js';
 import { setStatus } from '../../utils/status.js';
@@ -160,7 +160,7 @@ export async function executeExec(
       env: {
         ...process.env,
         TERM: 'dumb',
-        PATH: `${resolve('scripts')}:${process.env.PATH}`,
+        PATH: `${pathResolve('scripts')}:${process.env.PATH}`,
       },
       detached: true,
     });
