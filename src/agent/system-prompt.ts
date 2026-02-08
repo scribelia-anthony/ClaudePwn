@@ -1,4 +1,4 @@
-import { existsSync } from 'fs';
+import { existsSync, statSync } from 'fs';
 import { execSync } from 'child_process';
 import { readNotes } from '../session/notes.js';
 
@@ -23,6 +23,22 @@ function hasCommand(cmd: string): boolean {
 }
 
 const HAS_RUSTSCAN = hasCommand('rustscan');
+
+/** Check if FIFO exists AND a listener (ncat/nc) is actively reading it */
+export function isFifoLive(): boolean {
+  if (!existsSync('/tmp/shell_in')) return false;
+  // Verify it's actually a FIFO (not a stale regular file)
+  try {
+    if (!statSync('/tmp/shell_in').isFIFO()) return false;
+  } catch { return false; }
+  // Check if any process has the FIFO open
+  try {
+    const out = execSync('lsof /tmp/shell_in 2>/dev/null', { encoding: 'utf-8', timeout: 2000 });
+    return out.trim().split('\n').length > 1; // header + at least one process
+  } catch {
+    return false;
+  }
+}
 const IS_MACOS = process.platform === 'darwin';
 
 function getTerminalCmd(cmd: string): string {
@@ -44,8 +60,8 @@ export function buildSystemPrompt(box: string, ip: string, boxDir: string, ragCo
 
   const openTerminal = getTerminalCmd('ncat -lvnp 9001');
 
-  // Dynamic FIFO detection — inject reminder if shell is active
-  const fifoActive = existsSync('/tmp/shell_in');
+  // Dynamic FIFO detection — only if FIFO exists AND a listener process is attached
+  const fifoActive = isFifoLive();
 
   const recon = HAS_RUSTSCAN
     ? `rustscan EST installé — utilise-le : rustscan -a ${ip} --ulimit 5000 -- -Pn -sC -sV -oN ${boxDir}/scans/nmap-detail.txt`

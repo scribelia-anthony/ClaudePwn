@@ -1,10 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { randomUUID } from 'crypto';
-import { existsSync } from 'fs';
+
 import { getConfig, getApiKey } from '../config/index.js';
 import { login, getValidAccessToken, refreshTokens } from '../utils/auth.js';
 import { getAllTools, executeTool } from './tools/index.js';
-import { buildSystemPrompt } from './system-prompt.js';
+import { buildSystemPrompt, isFifoLive } from './system-prompt.js';
 import { saveHistory } from '../session/manager.js';
 import { log } from '../utils/logger.js';
 import { setStatus } from '../utils/status.js';
@@ -192,7 +192,7 @@ export class AgentLoop {
     await this.ensureAuth();
 
     // Append FIFO reminder directly in user message if shell is active
-    const fifoHint = existsSync('/tmp/shell_in')
+    const fifoHint = isFifoLive()
       ? '\n[RAPPEL OBLIGATOIRE: shell FIFO actif → tu DOIS proposer `shell upgrade` dans les prochaines étapes]'
       : '';
     this.messages.push({ role: 'user', content: userInput + fifoHint });

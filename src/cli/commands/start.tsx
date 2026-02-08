@@ -3,9 +3,11 @@ import { render, Box, Text, Static, useApp, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
 import { execSync } from 'child_process';
+import { existsSync, unlinkSync } from 'fs';
 import { createSession, loadHistory } from '../../session/manager.js';
 import { addHost } from '../../utils/hosts.js';
 import { getVPNIP } from '../../utils/vpn.js';
+import { isFifoLive } from '../../agent/system-prompt.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { AgentLoop } from '../../agent/loop.js';
 import { interruptCurrentExec } from '../../agent/tools/exec.js';
@@ -325,6 +327,12 @@ export async function startCommand(box: string, ip: string): Promise<void> {
     console.error(`\x1b[31m[-] VPN non connecté — pas d'interface tun détectée.\x1b[0m`);
     console.error(`\x1b[33m[*] Lance d'abord : claudepwn connect <fichier.ovpn>\x1b[0m`);
     process.exit(1);
+  }
+
+  // Clean stale FIFOs from previous sessions (no listener attached)
+  if (existsSync('/tmp/shell_in') && !isFifoLive()) {
+    try { unlinkSync('/tmp/shell_in'); } catch {}
+    try { unlinkSync('/tmp/shell_out'); } catch {}
   }
 
   // Setup session
