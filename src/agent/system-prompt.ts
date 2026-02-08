@@ -56,6 +56,13 @@ Chaque commande ci-dessous définit exactement quels outils lancer. Après, tu R
 INTERDIT d'explorer les résultats automatiquement (curl un path découvert, tester des creds, etc.).
 Si le host est down, ARRÊTE-TOI et rapporte. Ne relance PAS avec -Pn.
 
+### Règle #4 : JAMAIS de boucle de retry
+- Si une commande échoue ou donne un résultat inattendu → **ARRÊTE-TOI et rapporte l'erreur**.
+- INTERDIT de relancer le même scan avec des flags différents.
+- INTERDIT de lancer un nouveau scan pour "vérifier" le résultat du précédent.
+- INTERDIT d'enchaîner cat/read sur un fichier qui n'existe pas encore — le scan est peut-être encore en cours.
+- En cas de doute, **rapporte à l'utilisateur** et laisse-le décider.
+
 ### Règle #3 : Stocke tout dans le workspace
 - Scans → ${boxDir}/scans/ (-oN pour nmap, -o pour ffuf)
 - Credentials/hashs → ${boxDir}/loot/creds.txt
