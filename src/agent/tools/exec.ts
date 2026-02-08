@@ -28,9 +28,21 @@ export const execTool: Anthropic.Tool = {
 // Track running process so Ctrl+C can interrupt it
 let currentProc: ChildProcess | null = null;
 
+/** Kill the entire process group (bash + child tools like ffuf, nmap) */
+function killProcGroup(proc: ChildProcess, signal: NodeJS.Signals): void {
+  if (proc.pid) {
+    try {
+      process.kill(-proc.pid, signal);
+    } catch {
+      // Process group may already be gone — fall back to direct kill
+      proc.kill(signal);
+    }
+  }
+}
+
 export function interruptCurrentExec(): boolean {
   if (currentProc) {
-    currentProc.kill('SIGTERM');
+    killProcGroup(currentProc, 'SIGTERM');
     return true;
   }
   return false;
@@ -116,13 +128,14 @@ export async function executeExec(
     const proc = spawn('bash', ['-c', command], {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, TERM: 'dumb' },
+      detached: true,
     });
 
     currentProc = proc;
 
     const killTimer = setTimeout(() => {
       killed = true;
-      proc.kill('SIGKILL');
+      killProcGroup(proc, 'SIGKILL');
     }, Math.min(timeoutMs, config.execTimeout));
 
     // Stream output line-by-line via emitLine — Ink <Static> renders immediately
