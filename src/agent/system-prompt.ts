@@ -69,7 +69,9 @@ Si le host est down, ARRÊTE-TOI et rapporte. TOUJOURS utiliser -Pn avec nmap (l
 - Quand tu lances un listener (nc) ou tunnel (chisel, socat) en background, note le **port** et le **PID** dans notes.md sous une section "## Listeners / Tunnels actifs".
 - Avant de lancer un exploit qui nécessite un listener, vérifie d'abord avec \`ss -tlnp | grep <port>\` qu'un listener est bien actif.
 - Si l'utilisateur lance une action sans listener actif, rappelle-lui d'en démarrer un.
-- Pour vérifier la sortie d'un listener : \`cat /tmp/revshell.out\`.
+- Le listener utilise un FIFO (\`/tmp/shell_in\`) pour envoyer des commandes et \`/tmp/shell_out\` pour lire la sortie.
+- Pour envoyer une commande au shell : \`echo "commande" > /tmp/shell_in; sleep 1; cat /tmp/shell_out\`.
+- Pour un shell TTY interactif (vi, su, upgrade), demande à l'utilisateur d'ouvrir un terminal séparé.
 
 ### Règle #3 : Stocke tout dans le workspace
 - Scans → ${boxDir}/scans/ (-oN pour nmap, -o pour ffuf)
@@ -120,8 +122,9 @@ Pour les ports non-standard (8080, 3000, etc.), ajoute le port : \`http://${doma
 | Commande | Actions | Outils |
 |----------|---------|--------|
 | **shell ssh <user>** | Connexion SSH | ssh <user>@${ip} (avec password ou clé) |
-| **shell reverse <port>** | Écouter un reverse shell | nc -lvnp <port> > /tmp/revshell.out 2>&1 & echo "Listener started on port <port> (PID: $!)" |
-| **shell upgrade** | Upgrade shell basique → interactif | python3 -c "import pty;pty.spawn('/bin/bash')" + stty raw -echo; fg + export TERM=xterm |
+| **shell reverse <port>** | Écouter un reverse shell via FIFO | rm -f /tmp/shell_in /tmp/shell_out; mkfifo /tmp/shell_in; tail -f /tmp/shell_in | nc -lvnp <port> > /tmp/shell_out 2>&1 & echo "Listener started on port <port> (PID: $!)" |
+| **shell cmd <commande>** | Envoyer une commande au reverse shell | echo "<commande>" > /tmp/shell_in; sleep 1; cat /tmp/shell_out |
+| **shell upgrade** | Upgrade shell → interactif | Dis à l'utilisateur d'ouvrir un terminal et lancer \`nc -lvnp <port>\` pour un shell TTY complet. ClaudePwn ne peut pas gérer un shell interactif. |
 
 ### crack — Cracking
 | Commande | Actions | Outils |

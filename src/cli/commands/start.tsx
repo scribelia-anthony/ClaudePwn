@@ -19,7 +19,7 @@ const COMPLETIONS = [
   'scan box', 'scan ports', 'scan udp', 'scan vulns',
   'enum web', 'inspect', 'enum ftp', 'enum smb', 'enum dns', 'enum vhosts', 'enum ldap', 'enum snmp', 'enum users',
   'exploit search', 'exploit sqli', 'exploit lfi', 'exploit upload',
-  'shell ssh', 'shell reverse', 'shell upgrade',
+  'shell ssh', 'shell reverse', 'shell cmd', 'shell upgrade',
   'crack hash', 'crack ssh', 'crack web',
   'privesc linux', 'privesc windows',
   'loot user', 'loot root', 'loot creds',
