@@ -66,8 +66,8 @@ function isProgressLine(raw: string): boolean {
   if (/[A-Za-z0-9+/=]{60,}/.test(line)) return true;
   if (/^\|\s*ssh-hostkey:/.test(line)) return true;
   if (/^\|\s+\d+\s+[0-9a-f:]{20,}/.test(line)) return true;
-  // rustscan banner/noise + random taglines
-  if (/[\u{1F000}-\u{1FFFF}]/u.test(line)) return true;
+  // rustscan banner/noise + random taglines (emoji in various Unicode ranges)
+  if (/[\u{200D}\u{2300}-\u{23FF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F000}-\u{1FFFF}]/u.test(line)) return true;
   if (/^[.|\-{}\s\\/'`_]{4,}$/.test(line)) return true;
   if (/^\s*:.*:$/.test(line)) return true;
   if (/^The Modern Day/.test(line)) return true;
