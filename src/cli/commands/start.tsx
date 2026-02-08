@@ -7,7 +7,7 @@ import { createSession, loadHistory } from '../../session/manager.js';
 import { addHost } from '../../utils/hosts.js';
 import { AgentLoop } from '../../agent/loop.js';
 import { interruptCurrentExec } from '../../agent/tools/exec.js';
-import { log } from '../../utils/logger.js';
+import { log, lastShortcuts } from '../../utils/logger.js';
 import { outputEmitter, type OutputLine } from '../../utils/output.js';
 import { emitLine } from '../../utils/output.js';
 import { statusEmitter } from '../../utils/status.js';
@@ -58,7 +58,7 @@ function showHelp(): void {
   emitLine(chalk.white('  loot creds      ') + chalk.dim('Dump credentials'));
   emitLine(chalk.white('  /ask            ') + chalk.dim('Analyse détaillée + prochaines étapes'));
   emitLine(chalk.bold('\n  L\'agent tourne en fond — tu peux taper pendant qu\'il travaille.'));
-  emitLine(chalk.dim('  Tab = autocomplétion, Ctrl+C = interrompre scan en cours.\n'));
+  emitLine(chalk.dim('  1/2/3 = exécuter une étape proposée, Tab = autocomplétion, Ctrl+C = interrompre.\n'));
 }
 
 function StatusLine() {
@@ -184,6 +184,25 @@ function Prompt({ box, ip, agent, historyLen, boxDir, hostUp }: PromptProps) {
       } else {
         log.ok('Aucune tâche en cours.');
       }
+      return;
+    }
+
+    // Numeric shortcuts: "1", "2", "3" → execute last suggested command
+    if (/^[1-9]$/.test(trimmed)) {
+      const idx = parseInt(trimmed) - 1;
+      const cmd = lastShortcuts[idx];
+      if (cmd) {
+        emitLine(chalk.dim(`  → ${cmd}`));
+        // Re-submit as if user typed the command
+        if (runningRef.current > 0) {
+          agent.injectMessage(cmd);
+          log.info('Reçu — l\'agent verra ton message après la commande en cours.');
+        } else {
+          runTask(cmd);
+        }
+        return;
+      }
+      log.warn(`Pas de commande #${trimmed} disponible.`);
       return;
     }
 

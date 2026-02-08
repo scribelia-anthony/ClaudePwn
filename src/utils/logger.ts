@@ -2,6 +2,12 @@ import chalk from 'chalk';
 import { emitLine } from './output.js';
 
 /**
+ * Last numbered shortcuts extracted from agent output.
+ * Prompt reads these to allow "1", "2", "3" as input shortcuts.
+ */
+export let lastShortcuts: string[] = [];
+
+/**
  * Render markdown text to styled terminal output using chalk.
  * Handles: headers, bold, inline code, tables, lists, horizontal rules.
  */
@@ -161,6 +167,19 @@ export const log = {
   },
 
   assistant(text: string) {
+    // Extract numbered shortcuts (e.g. "1. exploit search nibbleblog — desc")
+    const shortcuts: string[] = [];
+    for (const line of text.split('\n')) {
+      const m = line.match(/^\s*(\d+)\.\s+(.+?)\s+—/);
+      if (m) {
+        const idx = parseInt(m[1]);
+        shortcuts[idx - 1] = m[2].trim();
+      }
+    }
+    if (shortcuts.filter(Boolean).length > 0) {
+      lastShortcuts = shortcuts;
+    }
+
     const rendered = renderMarkdown(text).trimEnd();
     for (const line of rendered.split('\n')) {
       emitLine(line);
