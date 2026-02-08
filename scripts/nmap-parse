@@ -4,6 +4,9 @@ import re
 import subprocess
 import sys
 
+NMAP_REASONS = {'syn-ack', 'conn-refused', 'reset', 'no-response', 'host-unreach',
+                'net-unreach', 'ttl', 'localhost-response', 'user-set'}
+
 def parse_nmap(path):
     with open(path) as f:
         lines = f.readlines()
@@ -13,10 +16,14 @@ def parse_nmap(path):
     current_port = None
 
     for line in lines:
-        # Open port line: 22/tcp open ssh OpenSSH 7.2p2 Ubuntu 4ubuntu2.2 (Ubuntu Linux; protocol 2.0)
+        # Open port line: 22/tcp open ssh syn-ack OpenSSH 7.2p2 Ubuntu 4ubuntu2.2 (Ubuntu Linux; protocol 2.0)
         m = re.match(r'^(\d+/\w+)\s+open\s+(\S+)\s*(.*)', line)
         if m:
             port, service, version = m.group(1), m.group(2), m.group(3).strip()
+            # Strip nmap reason field (syn-ack, conn-refused, etc.) if present
+            parts = version.split(None, 1)
+            if parts and parts[0] in NMAP_REASONS:
+                version = parts[1] if len(parts) > 1 else ''
             ports.append((port, service, version))
             current_port = port
             continue
@@ -96,11 +103,11 @@ def run_searchsploit(ports):
         print(f"\n[*] {term}")
         try:
             result = subprocess.run(
-                ['searchsploit', '--color', term],
+                ['searchsploit', term],
                 capture_output=True, text=True, timeout=10
             )
             output = result.stdout.strip()
-            if output and 'No Results' not in output:
+            if output and 'Exploits: No Results' not in output:
                 # Indent the table
                 for line in output.split('\n'):
                     print(f"  {line}")
