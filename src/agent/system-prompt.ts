@@ -120,7 +120,7 @@ Si le host est down, ARRÊTE-TOI et rapporte. Ne relance PAS avec -Pn.
 - Wordlist passwords : ${SECLISTS}/Passwords/Leaked-Databases/rockyou.txt
 - Wordlist DNS : ${SECLISTS}/Discovery/DNS/subdomains-top1million-5000.txt
 - searchsploit : TOUJOURS un appel séparé par service (pas \`searchsploit "A" "B"\`)
-- ffuf : TOUJOURS avec -ac -ic
+- ffuf : TOUJOURS avec -ac -ic — après le scan, analyse avec \`ffuf-parse <fichier.json>\`
 - Utilise le domaine ${domain} (pas l'IP) pour l'enum web
 - Impacket : psexec, smbexec, wmiexec, secretsdump, getTGT, getNPUsers
 - Transfert : python3 -m http.server, curl, nc, chisel, ligolo-ng

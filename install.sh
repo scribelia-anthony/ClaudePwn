@@ -63,6 +63,11 @@ mkdir -p "$USER_BIN"
 ln -sf "$INSTALL_DIR/dist/index.js" "$USER_BIN/claudepwn"
 chmod +x "$USER_BIN/claudepwn"
 
+# Install helper scripts
+for script in "$INSTALL_DIR"/scripts/*; do
+    [ -f "$script" ] && ln -sf "$script" "$USER_BIN/$(basename "$script")"
+done
+
 # Ensure ~/.local/bin is in PATH
 if ! echo "$PATH" | grep -q "$USER_BIN"; then
     SHELL_RC=""
