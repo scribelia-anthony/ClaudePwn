@@ -25,6 +25,39 @@ const COMPLETIONS = [
 
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
+function showHelp(): void {
+  emitLine(chalk.bold('\n  Commandes locales :\n'));
+  emitLine(chalk.white('  help, ?         ') + chalk.dim('Cette aide'));
+  emitLine(chalk.white('  status          ') + chalk.dim('Nombre de tâches en cours'));
+  emitLine(chalk.white('  exit, quit      ') + chalk.dim('Quitter (session sauvegardée)'));
+  emitLine(chalk.bold('\n  Commandes agent :\n'));
+  emitLine(chalk.white('  scan box        ') + chalk.dim('Recon complète (rustscan/nmap → searchsploit)'));
+  emitLine(chalk.white('  scan ports      ') + chalk.dim('Scan ports rapide'));
+  emitLine(chalk.white('  scan udp        ') + chalk.dim('Top 200 ports UDP'));
+  emitLine(chalk.white('  scan vulns      ') + chalk.dim('Scripts vulnérabilités nmap'));
+  emitLine(chalk.white('  enum web [path] ') + chalk.dim('Énumération web (curl, ffuf)'));
+  emitLine(chalk.white('  enum smb        ') + chalk.dim('Énumération SMB (smbclient, enum4linux)'));
+  emitLine(chalk.white('  enum dns        ') + chalk.dim('Zone transfer + subdomains'));
+  emitLine(chalk.white('  enum ldap       ') + chalk.dim('Dump LDAP'));
+  emitLine(chalk.white('  enum snmp       ') + chalk.dim('Community strings SNMP'));
+  emitLine(chalk.white('  enum users      ') + chalk.dim('Énumération utilisateurs'));
+  emitLine(chalk.white('  enum vhosts     ') + chalk.dim('Virtual hosts'));
+  emitLine(chalk.white('  exploit <cve>   ') + chalk.dim('Exploit spécifique'));
+  emitLine(chalk.white('  exploit sqli    ') + chalk.dim('Test SQL injection (sqlmap)'));
+  emitLine(chalk.white('  exploit lfi     ') + chalk.dim('Test LFI (traversal)'));
+  emitLine(chalk.white('  exploit upload  ') + chalk.dim('Upload webshell/reverse shell'));
+  emitLine(chalk.white('  crack hash      ') + chalk.dim('Crack hash (john/hashcat)'));
+  emitLine(chalk.white('  crack ssh [user]') + chalk.dim(' Brute force SSH (hydra)'));
+  emitLine(chalk.white('  crack web [url] ') + chalk.dim('Brute force formulaire web'));
+  emitLine(chalk.white('  privesc linux   ') + chalk.dim('Escalade de privilèges Linux'));
+  emitLine(chalk.white('  privesc windows ') + chalk.dim('Escalade de privilèges Windows'));
+  emitLine(chalk.white('  loot user/root  ') + chalk.dim('Récupérer les flags'));
+  emitLine(chalk.white('  loot creds      ') + chalk.dim('Dump credentials'));
+  emitLine(chalk.white('  /ask            ') + chalk.dim('Analyse détaillée + prochaines étapes'));
+  emitLine(chalk.bold('\n  L\'agent tourne en fond — tu peux taper pendant qu\'il travaille.'));
+  emitLine(chalk.dim('  Tab = autocomplétion, Ctrl+C = interrompre scan en cours.\n'));
+}
+
 function StatusLine() {
   const [status, setStatusState] = useState<string | null>(null);
   const [frame, setFrame] = useState(0);
@@ -92,8 +125,7 @@ function Prompt({ box, ip, agent, historyLen, boxDir, hostUp }: PromptProps) {
     } else {
       log.warn(`Host ${ip} ne répond pas au ping — box expirée ou VPN coupé ?`);
     }
-    emitLine(chalk.dim('\nTape une instruction. Tab pour compléter, "help" pour l\'aide.'));
-    emitLine(chalk.dim('L\'agent travaille en arrière-plan — tu peux taper pendant qu\'il tourne.\n'));
+    showHelp();
   }, []);
 
   const runTask = useCallback(async (text: string) => {
@@ -136,36 +168,7 @@ function Prompt({ box, ip, agent, historyLen, boxDir, hostUp }: PromptProps) {
     }
 
     if (trimmed === 'help' || trimmed === '?') {
-      emitLine(chalk.bold('\n  Commandes locales :\n'));
-      emitLine(chalk.white('  help, ?         ') + chalk.dim('Cette aide'));
-      emitLine(chalk.white('  status          ') + chalk.dim('Nombre de tâches en cours'));
-      emitLine(chalk.white('  exit, quit      ') + chalk.dim('Quitter (session sauvegardée)'));
-      emitLine(chalk.bold('\n  Commandes agent :\n'));
-      emitLine(chalk.white('  scan box        ') + chalk.dim('Recon complète (rustscan/nmap → searchsploit)'));
-      emitLine(chalk.white('  scan ports      ') + chalk.dim('Scan ports rapide'));
-      emitLine(chalk.white('  scan udp        ') + chalk.dim('Top 200 ports UDP'));
-      emitLine(chalk.white('  scan vulns      ') + chalk.dim('Scripts vulnérabilités nmap'));
-      emitLine(chalk.white('  enum web [path] ') + chalk.dim('Énumération web (curl, ffuf)'));
-      emitLine(chalk.white('  enum smb        ') + chalk.dim('Énumération SMB (smbclient, enum4linux)'));
-      emitLine(chalk.white('  enum dns        ') + chalk.dim('Zone transfer + subdomains'));
-      emitLine(chalk.white('  enum ldap       ') + chalk.dim('Dump LDAP'));
-      emitLine(chalk.white('  enum snmp       ') + chalk.dim('Community strings SNMP'));
-      emitLine(chalk.white('  enum users      ') + chalk.dim('Énumération utilisateurs'));
-      emitLine(chalk.white('  enum vhosts     ') + chalk.dim('Virtual hosts'));
-      emitLine(chalk.white('  exploit <cve>   ') + chalk.dim('Exploit spécifique'));
-      emitLine(chalk.white('  exploit sqli    ') + chalk.dim('Test SQL injection (sqlmap)'));
-      emitLine(chalk.white('  exploit lfi     ') + chalk.dim('Test LFI (traversal)'));
-      emitLine(chalk.white('  exploit upload  ') + chalk.dim('Upload webshell/reverse shell'));
-      emitLine(chalk.white('  crack hash      ') + chalk.dim('Crack hash (john/hashcat)'));
-      emitLine(chalk.white('  crack ssh [user]') + chalk.dim(' Brute force SSH (hydra)'));
-      emitLine(chalk.white('  crack web [url] ') + chalk.dim('Brute force formulaire web'));
-      emitLine(chalk.white('  privesc linux   ') + chalk.dim('Escalade de privilèges Linux'));
-      emitLine(chalk.white('  privesc windows ') + chalk.dim('Escalade de privilèges Windows'));
-      emitLine(chalk.white('  loot user/root  ') + chalk.dim('Récupérer les flags'));
-      emitLine(chalk.white('  loot creds      ') + chalk.dim('Dump credentials'));
-      emitLine(chalk.white('  /ask            ') + chalk.dim('Analyse détaillée + prochaines étapes'));
-      emitLine(chalk.bold('\n  L\'agent tourne en fond — tu peux taper pendant qu\'il travaille.'));
-      emitLine(chalk.dim('  Tab = autocomplétion, Ctrl+C = interrompre scan en cours.\n'));
+      showHelp();
       return;
     }
 
