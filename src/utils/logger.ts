@@ -1,15 +1,120 @@
-import chalk, { Chalk } from 'chalk';
-import { marked } from 'marked';
-import { markedTerminal } from 'marked-terminal';
+import chalk from 'chalk';
 import { emitLine } from './output.js';
 
-// Force full color support for marked-terminal (chalk may detect level 0 at import time)
-const fullColorChalk = new Chalk({ level: 3 });
-marked.use(markedTerminal({
-  tab: 2,
-  chalk: fullColorChalk,
-  showSectionPrefix: false,
-}) as any);
+/**
+ * Render markdown text to styled terminal output using chalk.
+ * Handles: headers, bold, inline code, tables, lists, horizontal rules.
+ */
+function renderMarkdown(text: string): string {
+  const lines = text.split('\n');
+  const out: string[] = [];
+  let inTable = false;
+  let tableRows: string[][] = [];
+  let tableAligns: string[] = [];
+
+  function flushTable() {
+    if (tableRows.length === 0) return;
+    // Calculate column widths
+    const colCount = Math.max(...tableRows.map(r => r.length));
+    const widths: number[] = Array(colCount).fill(0);
+    for (const row of tableRows) {
+      for (let i = 0; i < row.length; i++) {
+        widths[i] = Math.max(widths[i], row[i].length);
+      }
+    }
+
+    const hLine = chalk.dim('  ┌' + widths.map(w => '─'.repeat(w + 2)).join('┬') + '┐');
+    const mLine = chalk.dim('  ├' + widths.map(w => '─'.repeat(w + 2)).join('┼') + '┤');
+    const bLine = chalk.dim('  └' + widths.map(w => '─'.repeat(w + 2)).join('┴') + '┘');
+
+    out.push(hLine);
+    for (let r = 0; r < tableRows.length; r++) {
+      const row = tableRows[r];
+      const cells = widths.map((w, i) => {
+        const val = (row[i] || '').padEnd(w);
+        return r === 0 ? chalk.bold.cyan(val) : inlineStyle(val);
+      });
+      out.push(chalk.dim('  │') + cells.map(c => ` ${c} `).join(chalk.dim('│')) + chalk.dim('│'));
+      if (r === 0) out.push(mLine);
+      else if (r < tableRows.length - 1) out.push(mLine);
+    }
+    out.push(bLine);
+    tableRows = [];
+    tableAligns = [];
+  }
+
+  /** Apply inline styles: **bold**, `code`, *italic* */
+  function inlineStyle(s: string): string {
+    // Bold + code: **`text`**
+    s = s.replace(/\*\*`([^`]+)`\*\*/g, (_, c) => chalk.bold.yellow(c));
+    // Bold
+    s = s.replace(/\*\*([^*]+)\*\*/g, (_, b) => chalk.bold(b));
+    // Inline code
+    s = s.replace(/`([^`]+)`/g, (_, c) => chalk.yellow(c));
+    // Italic
+    s = s.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, (_, i) => chalk.italic(i));
+    return s;
+  }
+
+  for (const line of lines) {
+    // Table row
+    if (/^\s*\|/.test(line) && /\|\s*$/.test(line)) {
+      // Separator row (|---|---|)
+      if (/^\s*\|[\s\-:|]+\|\s*$/.test(line)) {
+        inTable = true;
+        continue;
+      }
+      const cells = line.split('|').slice(1, -1).map(c => c.trim());
+      tableRows.push(cells);
+      inTable = true;
+      continue;
+    }
+
+    // End of table
+    if (inTable) {
+      flushTable();
+      inTable = false;
+    }
+
+    // Horizontal rule
+    if (/^\s*[-*_]{3,}\s*$/.test(line)) {
+      out.push(chalk.dim('  ' + '─'.repeat(60)));
+      continue;
+    }
+
+    // Headers
+    const h1 = line.match(/^# (.+)/);
+    if (h1) { out.push(''); out.push(chalk.bold.cyan.underline(h1[1])); out.push(''); continue; }
+
+    const h2 = line.match(/^## (.+)/);
+    if (h2) { out.push(''); out.push(chalk.bold.cyan(h2[1])); continue; }
+
+    const h3 = line.match(/^### (.+)/);
+    if (h3) { out.push(chalk.cyan(h3[1])); continue; }
+
+    // Numbered list
+    const numList = line.match(/^(\s*)(\d+)\.\s+(.+)/);
+    if (numList) {
+      out.push(`${numList[1]}  ${chalk.dim(numList[2] + '.')} ${inlineStyle(numList[3])}`);
+      continue;
+    }
+
+    // Bullet list
+    const bullet = line.match(/^(\s*)[-*]\s+(.+)/);
+    if (bullet) {
+      out.push(`${bullet[1]}  ${chalk.dim('•')} ${inlineStyle(bullet[2])}`);
+      continue;
+    }
+
+    // Regular text
+    out.push(inlineStyle(line));
+  }
+
+  // Flush any remaining table
+  if (inTable) flushTable();
+
+  return out.join('\n');
+}
 
 export const log = {
   info(msg: string) {
@@ -56,8 +161,7 @@ export const log = {
   },
 
   assistant(text: string) {
-    // Render markdown to terminal ANSI (bold, tables, etc.)
-    const rendered = (marked.parse(text) as string).trimEnd();
+    const rendered = renderMarkdown(text).trimEnd();
     for (const line of rendered.split('\n')) {
       emitLine(line);
     }
