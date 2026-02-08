@@ -16,7 +16,7 @@ import { statusEmitter } from '../../utils/status.js';
 const COMPLETIONS = [
   'help', 'exit', 'quit', '/ask', 'status',
   'scan box', 'scan ports', 'scan udp', 'scan vulns',
-  'enum web', 'enum smb', 'enum dns', 'enum ldap', 'enum snmp', 'enum users', 'enum vhosts',
+  'enum web', 'inspect', 'enum smb', 'enum dns', 'enum ldap', 'enum snmp', 'enum users', 'enum vhosts',
   'exploit search', 'exploit sqli', 'exploit xss', 'exploit lfi', 'exploit upload',
   'crack hash', 'crack ssh', 'crack web',
   'privesc linux', 'privesc windows',
@@ -36,6 +36,7 @@ function showHelp(): void {
   emitLine(chalk.white('  scan udp        ') + chalk.dim('Top 200 ports UDP'));
   emitLine(chalk.white('  scan vulns      ') + chalk.dim('Scripts vulnérabilités nmap'));
   emitLine(chalk.white('  enum web [path] ') + chalk.dim('Énumération web (curl, ffuf)'));
+  emitLine(chalk.white('  inspect /path   ') + chalk.dim('Lecture rapide d\'une URL (headers + body)'));
   emitLine(chalk.white('  enum smb        ') + chalk.dim('Énumération SMB (smbclient, enum4linux)'));
   emitLine(chalk.white('  enum dns        ') + chalk.dim('Zone transfer + subdomains'));
   emitLine(chalk.white('  enum ldap       ') + chalk.dim('Dump LDAP'));
