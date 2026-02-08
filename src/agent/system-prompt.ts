@@ -65,6 +65,12 @@ Si le host est down, ARRÊTE-TOI et rapporte. TOUJOURS utiliser -Pn avec nmap (l
 - INTERDIT d'utiliser cat/grep/python3 pour lire des résultats — utilise les scripts obligatoires.
 - En cas de doute, **rapporte à l'utilisateur** et laisse-le décider.
 
+### Règle #5 : Suivi des process background (listeners, tunnels)
+- Quand tu lances un listener (nc) ou tunnel (chisel, socat) en background, note le **port** et le **PID** dans notes.md sous une section "## Listeners / Tunnels actifs".
+- Avant de lancer un exploit qui nécessite un listener, vérifie d'abord avec \`ss -tlnp | grep <port>\` qu'un listener est bien actif.
+- Si l'utilisateur lance une action sans listener actif, rappelle-lui d'en démarrer un.
+- Pour vérifier la sortie d'un listener : \`cat /tmp/revshell.out\`.
+
 ### Règle #3 : Stocke tout dans le workspace
 - Scans → ${boxDir}/scans/ (-oN pour nmap, -o pour ffuf)
 - Credentials/hashs → ${boxDir}/loot/creds.txt
@@ -114,7 +120,7 @@ Pour les ports non-standard (8080, 3000, etc.), ajoute le port : \`http://${doma
 | Commande | Actions | Outils |
 |----------|---------|--------|
 | **shell ssh <user>** | Connexion SSH | ssh <user>@${ip} (avec password ou clé) |
-| **shell reverse <port>** | Écouter un reverse shell | nc -lvnp <port> (sur la machine locale) |
+| **shell reverse <port>** | Écouter un reverse shell | nc -lvnp <port> > /tmp/revshell.out 2>&1 & echo "Listener started on port <port> (PID: $!)" |
 | **shell upgrade** | Upgrade shell basique → interactif | python3 -c "import pty;pty.spawn('/bin/bash')" + stty raw -echo; fg + export TERM=xterm |
 
 ### crack — Cracking
