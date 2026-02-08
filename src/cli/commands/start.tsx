@@ -15,13 +15,12 @@ import { statusEmitter } from '../../utils/status.js';
 // Tab completions
 const COMPLETIONS = [
   'help', 'exit', 'quit', '/ask', 'status',
-  'scan la box', 'scan ports', 'scan udp', 'scan vulns',
-  'enum web', 'ffuf', 'gobuster', 'nikto', 'whatweb', 'wpscan',
-  'enum smb', 'enum ldap', 'enum dns', 'enum snmp', 'enum ftp',
-  'searchsploit', 'exploit', 'reverse shell', 'sqlmap', 'hydra',
-  'privesc', 'linpeas', 'winpeas', 'bloodhound',
-  'cherche un exploit', 'télécharge', 'upload', 'crack',
-  'montre les notes', 'résumé', 'prochaine étape',
+  'scan box', 'scan ports', 'scan udp', 'scan vulns',
+  'enum web', 'enum smb', 'enum dns', 'enum ldap', 'enum snmp', 'enum users', 'enum vhosts',
+  'exploit sqli', 'exploit xss', 'exploit lfi', 'exploit upload',
+  'crack hash', 'crack ssh', 'crack web',
+  'privesc linux', 'privesc windows',
+  'loot user', 'loot root', 'loot creds',
 ];
 
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -141,11 +140,16 @@ function Prompt({ box, ip, agent, historyLen, boxDir, hostUp }: PromptProps) {
       emitLine(chalk.white('  help, ?         ') + chalk.dim('Cette aide'));
       emitLine(chalk.white('  status          ') + chalk.dim('Nombre de tâches en cours'));
       emitLine(chalk.white('  exit, quit      ') + chalk.dim('Quitter (session sauvegardée)'));
-      emitLine(chalk.bold('\n  Raccourcis IA :\n'));
-      emitLine(chalk.white('  scan la box     ') + chalk.dim('Recon complète (nmap → searchsploit → enum)'));
-      emitLine(chalk.white('  enum web        ') + chalk.dim('Énumération web (whatweb, ffuf, nikto)'));
+      emitLine(chalk.bold('\n  Commandes agent :\n'));
+      emitLine(chalk.white('  scan box        ') + chalk.dim('Recon complète (rustscan/nmap → searchsploit)'));
+      emitLine(chalk.white('  scan ports      ') + chalk.dim('Scan ports rapide'));
+      emitLine(chalk.white('  enum web        ') + chalk.dim('Énumération web (curl, ffuf)'));
       emitLine(chalk.white('  enum smb        ') + chalk.dim('Énumération SMB (smbclient, enum4linux)'));
-      emitLine(chalk.white('  privesc         ') + chalk.dim('Escalade de privilèges (linpeas, enumération)'));
+      emitLine(chalk.white('  enum dns        ') + chalk.dim('Zone transfer + subdomains'));
+      emitLine(chalk.white('  exploit <cve>   ') + chalk.dim('Exploit spécifique'));
+      emitLine(chalk.white('  crack hash      ') + chalk.dim('Crack hash (john/hashcat)'));
+      emitLine(chalk.white('  privesc linux   ') + chalk.dim('Escalade de privilèges Linux'));
+      emitLine(chalk.white('  loot user/root  ') + chalk.dim('Récupérer les flags'));
       emitLine(chalk.white('  /ask            ') + chalk.dim('Analyse détaillée + prochaines étapes'));
       emitLine(chalk.bold('\n  L\'agent tourne en fond — tu peux taper pendant qu\'il travaille.'));
       emitLine(chalk.dim('  Tab = autocomplétion, Ctrl+C = interrompre scan en cours.\n'));
