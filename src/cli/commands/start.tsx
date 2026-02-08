@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import { execSync } from 'child_process';
 import { createSession, loadHistory } from '../../session/manager.js';
 import { addHost } from '../../utils/hosts.js';
+import Anthropic from '@anthropic-ai/sdk';
 import { AgentLoop } from '../../agent/loop.js';
 import { interruptCurrentExec } from '../../agent/tools/exec.js';
 import { log, lastShortcuts } from '../../utils/logger.js';
@@ -301,7 +302,7 @@ export async function startCommand(box: string, ip: string): Promise<void> {
   if (!hostUp) {
     console.error(`\x1b[33m[!] Host ${ip} ne répond pas — mode offline (analyse des anciens scans)\x1b[0m`);
   }
-  const history = loadHistory(session.boxDir);
+  const history = loadHistory(session.boxDir) as Anthropic.MessageParam[];
   const agent = new AgentLoop(box, ip, session.boxDir, history);
 
   // Start Ink — ALL output goes through <Static> from here
