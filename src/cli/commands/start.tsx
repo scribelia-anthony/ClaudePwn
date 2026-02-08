@@ -15,7 +15,7 @@ import { statusEmitter } from '../../utils/status.js';
 
 // Tab completions
 const COMPLETIONS = [
-  'help', 'exit', 'quit', '/ask', 'status', 'browse',
+  'help', 'exit', 'quit', 'save', '/ask', 'status', 'browse',
   'scan box', 'scan ports', 'scan udp', 'scan vulns',
   'enum web', 'inspect', 'enum ftp', 'enum smb', 'enum dns', 'enum vhosts', 'enum ldap', 'enum snmp', 'enum users',
   'exploit search', 'exploit sqli', 'exploit lfi', 'exploit upload',
@@ -33,6 +33,7 @@ function showHelp(): void {
   emitLine(chalk.white('  status           ') + chalk.dim('Nombre de tâches en cours'));
   emitLine(chalk.white('  browse /path     ') + chalk.dim('Ouvrir URL dans Chrome'));
   emitLine(chalk.white('  1, 2, 3          ') + chalk.dim('Exécuter une étape proposée'));
+  emitLine(chalk.white('  save             ') + chalk.dim('Consolider notes + cleanup + quitter'));
   emitLine(chalk.white('  exit, quit       ') + chalk.dim('Quitter (session sauvegardée)'));
   emitLine(chalk.bold('\n  Scan :\n'));
   emitLine(chalk.white('  scan box         ') + chalk.dim('Recon complète (ports + versions + exploits)'));
@@ -186,6 +187,18 @@ function Prompt({ box, ip, agent, historyLen, boxDir, hostUp }: PromptProps) {
       }
       log.info('Session sauvegardée. À plus.');
       exit();
+      return;
+    }
+
+    if (trimmed === 'save') {
+      if (runningRef.current > 0) {
+        log.warn('Attente de la fin de la tâche en cours...');
+        agent.injectMessage('save');
+        exitPendingRef.current = true;
+        return;
+      }
+      exitPendingRef.current = true;
+      runTask('save');
       return;
     }
 
