@@ -30,8 +30,8 @@ export function buildSystemPrompt(box: string, ip: string, boxDir: string): stri
   const domain = box.toLowerCase() + '.htb';
 
   const recon = HAS_RUSTSCAN
-    ? `rustscan EST installé — utilise-le : rustscan -a ${ip} --ulimit 5000 -- -sC -sV -oN ${boxDir}/scans/nmap-detail.txt`
-    : `rustscan non disponible — nmap en 2 phases : nmap -p- --min-rate 5000 --max-retries 2 -T4 -oN ${boxDir}/scans/nmap-ports.txt ${ip} puis nmap -sC -sV -p <ports> -oN ${boxDir}/scans/nmap-detail.txt ${ip}`;
+    ? `rustscan EST installé — utilise-le : rustscan -a ${ip} --ulimit 5000 -- -Pn -sC -sV -oN ${boxDir}/scans/nmap-detail.txt`
+    : `rustscan non disponible — nmap en 2 phases : nmap -Pn -p- --min-rate 5000 --max-retries 2 -T4 -oN ${boxDir}/scans/nmap-ports.txt ${ip} puis nmap -Pn -sC -sV -p <ports> -oN ${boxDir}/scans/nmap-detail.txt ${ip}`;
 
   return `# ClaudePwn — Assistant de Hacking
 
@@ -55,7 +55,7 @@ Tu es un assistant de hacking efficace. Tu communiques en français, uniquement 
 ### Règle #2 : Maximum 3 commandes Bash par demande
 Chaque commande ci-dessous définit exactement quels outils lancer. Après, tu RAPPORTES et tu t'ARRÊTES.
 INTERDIT d'explorer les résultats automatiquement (curl un path découvert, tester des creds, etc.).
-Si le host est down, ARRÊTE-TOI et rapporte. Ne relance PAS avec -Pn.
+Si le host est down, ARRÊTE-TOI et rapporte. TOUJOURS utiliser -Pn avec nmap (les boxes HTB bloquent l'ICMP).
 
 ### Règle #4 : JAMAIS de boucle de retry
 - Si une commande échoue ou donne un résultat inattendu → **ARRÊTE-TOI et rapporte l'erreur**.
@@ -77,9 +77,9 @@ Si le host est down, ARRÊTE-TOI et rapporte. Ne relance PAS avec -Pn.
 | Commande | Actions | Outils |
 |----------|---------|--------|
 | **scan box** | Scan complet + recherche exploits | ${recon} → nmap-parse ${boxDir}/scans/nmap-detail.txt --searchsploit |
-| **scan ports** | Ports uniquement, rapide | ${HAS_RUSTSCAN ? `rustscan -a ${ip} --ulimit 5000` : `nmap -p- --min-rate 5000 --max-retries 2 -T4 ${ip}`} -oN ${boxDir}/scans/nmap-ports.txt |
-| **scan udp** | Top 200 ports UDP | nmap -sU --top-ports 200 --min-rate 1000 -oN ${boxDir}/scans/nmap-udp.txt ${ip} |
-| **scan vulns** | Scripts vulnérabilités | nmap --script vuln -p <ports connus> -oN ${boxDir}/scans/nmap-vulns.txt ${ip} |
+| **scan ports** | Ports uniquement, rapide | ${HAS_RUSTSCAN ? `rustscan -a ${ip} --ulimit 5000` : `nmap -Pn -p- --min-rate 5000 --max-retries 2 -T4 ${ip}`} -oN ${boxDir}/scans/nmap-ports.txt |
+| **scan udp** | Top 200 ports UDP | nmap -Pn -sU --top-ports 200 --min-rate 1000 -oN ${boxDir}/scans/nmap-udp.txt ${ip} |
+| **scan vulns** | Scripts vulnérabilités | nmap -Pn --script vuln -p <ports connus> -oN ${boxDir}/scans/nmap-vulns.txt ${ip} |
 
 ### enum — Énumération
 | Commande | Actions | Outils |
