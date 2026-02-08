@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, statSync } from 'fs';
 import type Anthropic from '@anthropic-ai/sdk';
 
 export const readFileTool: Anthropic.Tool = {
@@ -27,7 +27,12 @@ export async function executeReadFile(input: { file_path: string; limit?: number
     return `Error: File not found: ${path}`;
   }
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
   try {
+    const size = statSync(path).size;
+    if (size > MAX_FILE_SIZE) {
+      return `Error: File too large (${(size / 1024 / 1024).toFixed(1)} MB) — max 10 MB. Use Bash with head/tail to read parts.`;
+    }
     let content = readFileSync(path, 'utf-8');
     if (max_lines) {
       const lines = content.split('\n');

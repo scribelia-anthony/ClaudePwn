@@ -1,4 +1,4 @@
-import { mkdirSync, existsSync, readFileSync, writeFileSync, readdirSync, statSync, unlinkSync } from 'fs';
+import { mkdirSync, existsSync, readFileSync, writeFileSync, readdirSync, statSync, unlinkSync, renameSync } from 'fs';
 import { join } from 'path';
 import { BOXES_DIR, ACTIVE_FILE } from '../config/index.js';
 import { generateNotesTemplate } from './notes.js';
@@ -64,7 +64,9 @@ export function loadHistory(boxDir: string): Array<{ role: string; content: unkn
 
 export function saveHistory(boxDir: string, messages: Array<{ role: string; content: unknown }>): void {
   const historyPath = join(boxDir, 'history.json');
-  writeFileSync(historyPath, JSON.stringify(messages, null, 2));
+  const tmpPath = historyPath + '.tmp';
+  writeFileSync(tmpPath, JSON.stringify(messages, null, 2));
+  renameSync(tmpPath, historyPath);
 }
 
 export function listBoxes(): Array<{ box: string; ip: string; active: boolean }> {

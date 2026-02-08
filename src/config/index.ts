@@ -54,7 +54,7 @@ export function getApiKey(): string | undefined {
 
 export function saveOAuthTokens(tokens: OAuthTokens): void {
   ensureConfigDir();
-  writeFileSync(TOKEN_FILE, JSON.stringify(tokens, null, 2));
+  writeFileSync(TOKEN_FILE, JSON.stringify(tokens, null, 2), { mode: 0o600 });
 }
 
 export function loadOAuthTokens(): OAuthTokens | null {

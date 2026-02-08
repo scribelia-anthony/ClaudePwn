@@ -267,8 +267,7 @@ export async function startCommand(box: string, ip: string): Promise<void> {
   addHost(ip, `${box.toLowerCase()}.htb`);
   const hostUp = checkHost(ip);
   if (!hostUp) {
-    console.error(`\x1b[31m[!] Host ${ip} ne répond pas au ping — box expirée ou VPN coupé ?\x1b[0m`);
-    process.exit(1);
+    console.error(`\x1b[33m[!] Host ${ip} ne répond pas — mode offline (analyse des anciens scans)\x1b[0m`);
   }
   const history = loadHistory(session.boxDir);
   const agent = new AgentLoop(box, ip, session.boxDir, history);

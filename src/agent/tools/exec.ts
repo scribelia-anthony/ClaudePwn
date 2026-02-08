@@ -1,10 +1,14 @@
 import { spawn, type ChildProcess } from 'child_process';
 import { appendFileSync } from 'fs';
-import { join, resolve as pathResolve } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { log } from '../../utils/logger.js';
 import { getConfig } from '../../config/index.js';
 import { setStatus } from '../../utils/status.js';
 import type Anthropic from '@anthropic-ai/sdk';
+
+// Absolute path to scripts/ directory (relative to dist/index.js → ../scripts/)
+const SCRIPTS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts');
 
 export const execTool: Anthropic.Tool = {
   name: 'Bash',
@@ -165,7 +169,7 @@ export async function executeExec(
       env: {
         ...process.env,
         TERM: 'dumb',
-        PATH: `${pathResolve('scripts')}:${process.env.PATH}`,
+        PATH: `${SCRIPTS_DIR}:${process.env.PATH}`,
       },
       detached: true,
     });

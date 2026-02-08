@@ -11,6 +11,9 @@ function validateHostInput(ip: string, hostname: string): void {
   }
 }
 
+// macOS sed -i requires '' suffix, Linux sed -i does not
+const SED_INPLACE = process.platform === 'darwin' ? "sed -i ''" : 'sed -i';
+
 function flushDNS(): void {
   try {
     if (process.platform === 'darwin') {
@@ -30,7 +33,7 @@ export function addHost(ip: string, hostname: string): void {
     // IP changed — remove old entry and re-add
     console.log(`[*] Mise à jour de /etc/hosts : ${hostname} → ${ip} (sudo requis)`);
     try {
-      execSync(`sudo sed -i '' '/${hostname}/d' /etc/hosts`, { stdio: 'inherit' });
+      execSync(`sudo ${SED_INPLACE} '/${hostname}/d' /etc/hosts`, { stdio: 'inherit' });
       execSync(`echo "${ip} ${hostname}" | sudo tee -a /etc/hosts > /dev/null`, { stdio: 'inherit' });
       flushDNS();
     } catch {
@@ -54,7 +57,7 @@ export function removeHost(hostname: string): void {
     return;
   }
   try {
-    execSync(`sudo sed -i '' '/${hostname}/d' /etc/hosts`, { stdio: 'inherit' });
+    execSync(`sudo ${SED_INPLACE} '/${hostname}/d' /etc/hosts`, { stdio: 'inherit' });
     log.ok(`Supprimé ${hostname} de /etc/hosts`);
   } catch {
     log.warn(`Impossible de modifier /etc/hosts`);
