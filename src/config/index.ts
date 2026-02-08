@@ -50,7 +50,7 @@ export function getConfig(): Config {
     model: (process.env.CLAUDEPWN_MODEL as string) || (typeof fileConfig.model === 'string' ? fileConfig.model : '') || 'claude-opus-4-6',
     maxTokens: safeInt(process.env.CLAUDEPWN_MAX_TOKENS, fileConfig.maxTokens, 16384, 1024, 128000),
     execTimeout: safeInt(process.env.CLAUDEPWN_EXEC_TIMEOUT, fileConfig.execTimeout, 300000, 5000, 3600000),
-    compressionThreshold: safeInt(process.env.CLAUDEPWN_COMPRESSION_THRESHOLD, fileConfig.compressionThreshold, 120000, 10000, 500000),
+    compressionThreshold: safeInt(process.env.CLAUDEPWN_COMPRESSION_THRESHOLD, fileConfig.compressionThreshold, 40000, 10000, 500000),
     compressionKeepRecent: safeInt(process.env.CLAUDEPWN_COMPRESSION_KEEP_RECENT, fileConfig.compressionKeepRecent, 10, 2, 100),
     compressionModel: (process.env.CLAUDEPWN_COMPRESSION_MODEL as string) || (typeof fileConfig.compressionModel === 'string' ? fileConfig.compressionModel : '') || 'claude-haiku-4-5-20251001',
   };

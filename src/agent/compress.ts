@@ -180,7 +180,18 @@ Sois concis mais ne perds AUCUNE info technique (usernames, chemins, ports, vers
       ...recentMessages,
     ];
   } catch (err: any) {
-    log.warn(`Compression échouée: ${err.message}. Historique non compressé.`);
-    return messages;
+    log.warn(`Compression LLM échouée: ${err.message}. Troncature brute de l'historique.`);
+    // Fallback: keep only recent messages to avoid infinite rate limit loops
+    return [
+      {
+        role: 'user' as const,
+        content: `[Historique tronqué — ${oldMessages.length} anciens messages supprimés. Consulte notes.md pour le contexte complet.]`,
+      },
+      {
+        role: 'assistant' as const,
+        content: 'Compris. Je me base sur notes.md pour le contexte.',
+      },
+      ...recentMessages,
+    ];
   }
 }
