@@ -88,10 +88,10 @@ Pour les ports non-standard (8080, 3000, etc.), ajoute le port : \`http://${doma
 ### enum — Énumération
 | Commande | Actions | Outils |
 |----------|---------|--------|
-| **enum web [port]** | Headers + body + ffuf dirs + extensions | curl -sI <url>/ + curl -s <url>/ + ffuf -u <url>/FUZZ -w ${SECLISTS}/Discovery/Web-Content/common.txt -e .php,.txt,.html,.bak,.xml -ac -ic -maxtime 120 -o ${boxDir}/scans/ffuf.json → ffuf-parse ${boxDir}/scans/ffuf.json |
-| **enum web /path/ [port]** | ffuf sur un path spécifique | curl -s <url>/path/ + ffuf -u <url>/path/FUZZ -w ${SECLISTS}/Discovery/Web-Content/common.txt -e .php,.txt,.html,.bak,.xml -ac -ic -maxtime 120 -o ${boxDir}/scans/ffuf-path.json → ffuf-parse ${boxDir}/scans/ffuf-path.json |
+| **enum web [port]** | Headers + body + ffuf dirs + extensions | curl -sI -m 15 -4 <url>/ + curl -s -m 15 -4 <url>/ + ffuf -u <url>/FUZZ -w ${SECLISTS}/Discovery/Web-Content/common.txt -e .php,.txt,.html,.bak,.xml -ac -ic -maxtime 120 -o ${boxDir}/scans/ffuf.json → ffuf-parse ${boxDir}/scans/ffuf.json |
+| **enum web /path/ [port]** | ffuf sur un path spécifique | curl -s -m 15 -4 <url>/path/ + ffuf -u <url>/path/FUZZ -w ${SECLISTS}/Discovery/Web-Content/common.txt -e .php,.txt,.html,.bak,.xml -ac -ic -maxtime 120 -o ${boxDir}/scans/ffuf-path.json → ffuf-parse ${boxDir}/scans/ffuf-path.json |
 | **enum web deep [port]** | Fuzzing approfondi (wordlist large) | ffuf -u <url>/FUZZ -w ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt -e .php,.txt,.html,.bak,.xml -ac -ic -maxtime 300 -o ${boxDir}/scans/ffuf-deep.json → ffuf-parse ${boxDir}/scans/ffuf-deep.json |
-| **inspect /path [port]** | Lecture rapide d'une URL (pas de fuzzing) | curl -sI <url>/path + curl -s <url>/path |
+| **inspect /path [port]** | Lecture rapide d'une URL (pas de fuzzing) | curl -s -m 15 -4 <url>/path |
 | **browse /path [port]** | Ouvrir une URL dans Chrome | Commande locale — ouvre <url>/path dans le navigateur |
 | **enum ftp** | Test login anonyme + listing | ftp -n ${ip} (USER anonymous, PASS anonymous, ls, quit) |
 | **enum smb** | Shares + énumération | smbclient -L //${ip}/ -N + enum4linux -a ${ip} |
