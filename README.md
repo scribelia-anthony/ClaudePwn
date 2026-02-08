@@ -1,3 +1,5 @@
+# ClaudePwn
+
 ```
    _____ _                 _      _____
   / ____| |               | |    |  __ \
@@ -8,7 +10,9 @@
 ```
 
 <p align="center">
-<strong>Framework de hacking autonome propulsé par Claude.</strong>
+<strong>Ton co-pilote pour HackTheBox.</strong>
+<br>
+<em>Tu ne tapes plus <code>nmap -sC -sV -p- -oN scan.txt 10.10.10.1</code>. Tu tapes <code>scan la box</code>.</em>
 <br><br>
 <a href="https://github.com/scribelia-anthony/ClaudePwn/actions/workflows/ci.yml"><img src="https://github.com/scribelia-anthony/ClaudePwn/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
@@ -17,11 +21,20 @@
 <img src="https://img.shields.io/badge/LLM-Claude%20Opus%204.6-purple.svg" alt="Claude Opus 4.6">
 </p>
 
-Un CLI standalone qui utilise l'API Anthropic (Opus 4.6) pour enchaîner automatiquement reconnaissance, énumération, exploitation et post-exploitation sur des boxes HackTheBox / CTF.
+---
 
-Tu lui dis `scan la box`, il lance nmap, searchsploit sur chaque service, ffuf si port 80, enum4linux si SMB, adapte les exploits et enchaîne tout seul.
+## Philosophie
 
-> **Disclaimer** : Cet outil est destiné **uniquement** aux environnements autorisés (CTF, labs). Voir [SECURITY.md](SECURITY.md).
+L'IA est partout. Demander à un hacker de ne pas l'utiliser, c'est comme demander à un dev React de coder en vanilla JS — ça n'a pas de sens.
+
+Mais "solve cette box" ou "trouve le flag", ça n'a pas de sens non plus. Tu perds ta méthodologie, ta réflexion, tes skills.
+
+**ClaudePwn trouve le juste milieu** : un framework de productivité comme les hackers en bug bounty en ont toujours eu. Des workflows, des automatisations, de l'efficacité — mais c'est **toi** qui réfléchis, c'est **toi** qui décides de la prochaine étape.
+
+Concrètement :
+- **L'agent exécute, résume, et s'arrête.** Il te propose des pistes, il ne les lance pas.
+- **Tu gardes le contrôle.** Maximum 3 commandes par action, puis retour au REPL.
+- **Les tâches répétitives sont automatisées**, pas la réflexion. `scan la box` remplace 5 commandes manuelles, pas ton cerveau.
 
 ---
 
@@ -32,7 +45,6 @@ claudepwn/Nibbles> scan la box
   ⠹ Réflexion...
 
 [Bash] nmap -sC -sV -p- -oN boxes/Nibbles/scans/nmap-full.txt 10.129.96.84
-Starting Nmap 7.98...
 PORT   STATE SERVICE VERSION
 22/tcp open  ssh     OpenSSH 7.2p2 Ubuntu
 80/tcp open  http    Apache httpd 2.4.18
@@ -42,12 +54,17 @@ PORT   STATE SERVICE VERSION
 
 [Bash] searchsploit Apache 2.4.18
 [Bash] whatweb http://10.129.96.84
-[Bash] ffuf -u http://10.129.96.84/FUZZ -w /usr/share/seclists/...
 
 Port 80 ouvert — Apache 2.4.18 sur Ubuntu. Nibbleblog trouvé sur /nibbleblog.
-Searchsploit: pas de CVE critique pour cette version Apache.
-Prochaine étape: énumération de /nibbleblog.
+Searchsploit : pas de CVE critique pour cette version Apache.
+
+Prochaines étapes :
+  1. enum web /nibbleblog/ — Fuzzer le CMS
+  2. inspect /nibbleblog/README — Identifier la version
+  3. exploit search nibbleblog — Chercher des CVE connues
 ```
+
+L'agent a fait la recon, résumé les résultats, et **s'est arrêté**. C'est toi qui choisis la suite.
 
 ---
 
@@ -97,43 +114,44 @@ claudepwn start <box> <ip>
 
 Crée le workspace, ajoute `<box>.htb` à `/etc/hosts`, et ouvre le REPL interactif.
 
-### Dans le REPL
+### Workflows
 
-| Commande | Description |
+Au lieu de retenir des flags et des syntaxes, tu parles en intentions :
+
+| Commande | Ce que ça fait |
 |---|---|
-| `scan la box` | Recon complète (nmap → searchsploit → enum) |
-| `enum web` | Énumération web (whatweb, ffuf, nikto) |
-| `enum smb` | Énumération SMB (smbclient, enum4linux) |
-| `privesc` | Escalade de privilèges (linpeas, enumération) |
-| `/ask` | Analyse détaillée + prochaines étapes |
-| `help` | Aide locale (pas d'appel IA) |
-| `exit` | Quitter (session sauvegardée) |
-| **Tab** | Autocomplétion |
-| **Ctrl+C** | Interrompt le scan en cours |
+| `scan la box` | nmap full → searchsploit sur chaque service → enum auto |
+| `enum web` | curl headers + body + ffuf directories |
+| `enum smb` | smbclient + enum4linux |
+| `enum web deep` | Fuzzing approfondi (wordlist large) |
+| `inspect /path` | Lecture rapide d'une URL |
+| `exploit search <terme>` | searchsploit |
+| `privesc` | linpeas, énumération locale |
 
-Tu peux aussi écrire n'importe quelle instruction en langage naturel :
+Tu peux aussi écrire en langage naturel :
 
 ```
 claudepwn/Box> cherche un exploit pour ProFTPD 1.3.5
 claudepwn/Box> lance hydra sur SSH avec admin:password123
-claudepwn/Box> télécharge le fichier /etc/shadow
 claudepwn/Box> crack ces hashs avec john
 ```
 
-### VPN HackTheBox
+### Raccourcis
+
+| Touche | Action |
+|---|---|
+| **Tab** | Autocomplétion |
+| **Ctrl+C** | Interrompt le scan en cours |
+| **1, 2, 3** | Sélectionner une prochaine étape proposée |
+
+### VPN & gestion
 
 ```bash
 claudepwn connect lab.ovpn    # connecter
 claudepwn connect              # vérifier l'IP VPN
 claudepwn stop                 # déconnecter
-```
-
-### Autres commandes
-
-```bash
-claudepwn list     # lister toutes les boxes
-claudepwn login    # (ré)authentification OAuth
-claudepwn --help   # aide CLI
+claudepwn list                 # lister les boxes
+claudepwn login                # (ré)authentification OAuth
 ```
 
 ---
@@ -143,29 +161,17 @@ claudepwn --help   # aide CLI
 ```
 Toi → REPL → Agent Loop → API Anthropic (Opus 4.6)
                 ↕                    ↕
-          Tools (Bash,         Claude décide
-          Read, Write,         quels tools
-          WebFetch)            appeler et
-                ↕              enchaîne
-          Résultats →     jusqu'à end_turn
+          Tools (Bash,         Claude exécute,
+          Read, Write,         résume, propose
+          WebFetch)            → retour au REPL
+                ↕
+          Résultats + notes auto-mises à jour
 ```
 
 1. Tu tapes une instruction
-2. L'IA réfléchit et appelle des tools (Bash, Read, Write...)
-3. Les tools s'exécutent (en parallèle si plusieurs)
-4. L'IA analyse les résultats et enchaîne automatiquement
-5. Quand elle a fini, tu reprends la main
-
-### Smart Chaining
-
-L'agent enchaîne automatiquement sans qu'on lui demande :
-
-- **nmap** → `searchsploit` sur chaque service:version
-- **Port 80/443** → `whatweb` + `ffuf`
-- **Port 445** → `smbclient -L -N` + `enum4linux -a`
-- **Port 53** → tentative de zone transfer
-- **Credentials trouvés** → test sur tous les services (SSH, SMB, WinRM)
-- **Exploit identifié** → recherche + adaptation du PoC
+2. L'agent exécute les commandes adaptées (max 3 par action)
+3. Il résume les résultats et propose des prochaines étapes
+4. **Tu choisis.** L'agent ne continue jamais seul.
 
 ---
 
@@ -177,7 +183,7 @@ Chaque box a son workspace dans `boxes/{box}/` :
 boxes/{box}/
 ├── notes.md        # Découvertes auto-mises à jour (ports, creds, flags)
 ├── log.md          # Toutes les commandes exécutées (horodatées)
-├── history.json    # Historique messages Claude (reprise de session)
+├── history.json    # Historique messages (reprise de session)
 ├── scans/          # Outputs nmap, ffuf, whatweb, etc.
 ├── loot/           # Credentials, hashs, fichiers récupérés
 └── exploits/       # Scripts d'exploit utilisés ou adaptés
@@ -196,21 +202,9 @@ La session est sauvegardée automatiquement. Relancer `claudepwn start Box 10.10
 | `CLAUDEPWN_MAX_TOKENS` | `16384` | Max tokens par réponse |
 | `CLAUDEPWN_EXEC_TIMEOUT` | `300000` | Timeout commandes (ms) |
 
-Ou via `~/.claudepwn/config.json` :
-
-```json
-{
-  "model": "claude-sonnet-4-5-20250929",
-  "maxTokens": 8192,
-  "execTimeout": 600000
-}
-```
-
 ---
 
 ## Outils supportés
-
-L'agent sait utiliser automatiquement :
 
 | Catégorie | Outils |
 |---|---|
@@ -239,7 +233,7 @@ Les contributions sont les bienvenues ! Consulte [CONTRIBUTING.md](CONTRIBUTING.
 
 ## Sécurité
 
-Usage responsable uniquement. Voir [SECURITY.md](SECURITY.md).
+Usage responsable uniquement — CTF et labs autorisés. Voir [SECURITY.md](SECURITY.md).
 
 ## License
 
