@@ -19,6 +19,9 @@ export interface Config {
   model: string;
   maxTokens: number;
   execTimeout: number;
+  compressionThreshold: number;
+  compressionKeepRecent: number;
+  compressionModel: string;
 }
 
 function ensureConfigDir(): void {
@@ -39,6 +42,9 @@ export function getConfig(): Config {
     model: (process.env.CLAUDEPWN_MODEL as string) || (fileConfig.model as string) || 'claude-opus-4-6',
     maxTokens: parseInt(process.env.CLAUDEPWN_MAX_TOKENS || '') || (fileConfig.maxTokens as number) || 16384,
     execTimeout: parseInt(process.env.CLAUDEPWN_EXEC_TIMEOUT || '') || (fileConfig.execTimeout as number) || 300000,
+    compressionThreshold: parseInt(process.env.CLAUDEPWN_COMPRESSION_THRESHOLD || '') || (fileConfig.compressionThreshold as number) || 120000,
+    compressionKeepRecent: parseInt(process.env.CLAUDEPWN_COMPRESSION_KEEP_RECENT || '') || (fileConfig.compressionKeepRecent as number) || 10,
+    compressionModel: (process.env.CLAUDEPWN_COMPRESSION_MODEL as string) || (fileConfig.compressionModel as string) || 'claude-haiku-4-5-20251001',
   };
 }
 

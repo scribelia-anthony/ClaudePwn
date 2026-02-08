@@ -7,6 +7,8 @@ import { buildSystemPrompt } from './system-prompt.js';
 import { saveHistory } from '../session/manager.js';
 import { log } from '../utils/logger.js';
 import { setStatus } from '../utils/status.js';
+import { compressHistory } from './compress.js';
+import { extractFindings, updateNotes } from './extract.js';
 
 type Message = Anthropic.MessageParam;
 type ContentBlock = Anthropic.ContentBlock;
@@ -177,6 +179,36 @@ export class AgentLoop {
     const system = buildSystemPrompt(this.box, this.ip, this.boxDir);
     const tools = getAllTools();
 
+    // Compress history if it exceeds the token threshold
+    this.messages = await compressHistory(
+      this.messages,
+      this.box,
+      this.ip,
+      this.boxDir,
+      async (model, systemPrompt, msgs, maxTokens) => {
+        if (this.useOAuth && this.accessToken) {
+          const response = await callAnthropicOAuth(this.accessToken, this.sessionId, {
+            model,
+            max_tokens: maxTokens,
+            system: systemPrompt,
+            messages: msgs,
+          });
+          const textBlock = response.content.find((b) => b.type === 'text');
+          return textBlock && 'text' in textBlock ? (textBlock as any).text : '';
+        }
+        const response = await this.client!.messages.create({
+          model,
+          max_tokens: maxTokens,
+          system: systemPrompt,
+          messages: msgs,
+        });
+        const textBlock = response.content.find((b) => b.type === 'text');
+        return textBlock && 'text' in textBlock ? (textBlock as any).text : '';
+      },
+    );
+
+    const messageCountBefore = this.messages.length;
+
     let turn = 0;
     while (true) {
       let response: Anthropic.Message;
@@ -256,6 +288,16 @@ export class AgentLoop {
     }
 
     setStatus(null);
+
+    // Auto-extract findings from new messages and update notes.md
+    try {
+      const newMessages = this.messages.slice(messageCountBefore);
+      const findings = extractFindings(newMessages);
+      updateNotes(this.boxDir, findings);
+    } catch (err: any) {
+      log.warn(`Extraction auto-notes échouée: ${err.message}`);
+    }
+
     saveHistory(this.boxDir, this.messages);
   }
 
