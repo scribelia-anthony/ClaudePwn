@@ -40,6 +40,11 @@ function killProcGroup(proc: ChildProcess, signal: NodeJS.Signals): void {
   }
 }
 
+// Kill detached child process group on exit to prevent orphans
+process.on('exit', () => {
+  if (currentProc) killProcGroup(currentProc, 'SIGKILL');
+});
+
 export function interruptCurrentExec(): boolean {
   if (currentProc) {
     killProcGroup(currentProc, 'SIGTERM');

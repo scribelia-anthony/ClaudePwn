@@ -21,6 +21,10 @@ def parse(path):
         status = r.get("status", 0)
         by_status.setdefault(status, []).append(r)
 
+    if not by_status:
+        print("Aucun résultat.")
+        return
+
     for status in sorted(by_status):
         entries = sorted(by_status[status], key=lambda r: r.get("length", 0))
         for r in entries:
