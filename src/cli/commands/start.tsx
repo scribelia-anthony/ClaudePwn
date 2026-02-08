@@ -129,7 +129,7 @@ function Prompt({ box, ip, agent, historyLen, boxDir, hostUp }: PromptProps) {
     return () => { outputEmitter.off('line', handler); };
   }, []);
 
-  // Show banner on mount
+  // Show banner on mount + auto-recap if resuming
   useEffect(() => {
     log.banner();
     log.info(`Démarrage de la session : ${box} (${ip})`);
@@ -142,7 +142,12 @@ function Prompt({ box, ip, agent, historyLen, boxDir, hostUp }: PromptProps) {
     } else {
       log.warn(`Host ${ip} ne répond pas au ping — box expirée ou VPN coupé ?`);
     }
-    showHelp();
+    if (historyLen > 0) {
+      log.info('Chargement du recap...');
+      runTask('/ask Résume où j\'en suis sur cette box en lisant notes.md. Affiche un recap concis (ce qui a été trouvé, où j\'en étais) et propose les prochaines étapes.');
+    } else {
+      showHelp();
+    }
   }, []);
 
   const runTask = useCallback(async (text: string) => {
