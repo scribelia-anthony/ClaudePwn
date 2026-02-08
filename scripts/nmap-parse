@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+"""Parse nmap -oN output into clean summary + optional searchsploit."""
+import re
+import subprocess
+import sys
+
+def parse_nmap(path):
+    with open(path) as f:
+        lines = f.readlines()
+
+    ports = []
+    scripts = {}  # port -> list of script output lines
+    current_port = None
+
+    for line in lines:
+        # Open port line: 22/tcp open ssh OpenSSH 7.2p2 Ubuntu 4ubuntu2.2 (Ubuntu Linux; protocol 2.0)
+        m = re.match(r'^(\d+/\w+)\s+open\s+(\S+)\s*(.*)', line)
+        if m:
+            port, service, version = m.group(1), m.group(2), m.group(3).strip()
+            ports.append((port, service, version))
+            current_port = port
+            continue
+
+        # Script output: |_http-title: Site doesn't have a title
+        if line.startswith('|') and current_port:
+            scripts.setdefault(current_port, []).append(line.rstrip())
+            continue
+
+        # Non-indented, non-pipe line = end of port section
+        if not line.startswith('|') and not line.startswith(' ') and line.strip():
+            if not re.match(r'^\d+/\w+', line):
+                current_port = None
+
+    return ports, scripts
+
+
+def print_table(ports, scripts):
+    if not ports:
+        print("Aucun port ouvert trouvé.")
+        return
+
+    # Column widths
+    pw = max(len(p[0]) for p in ports)
+    sw = max(len(p[1]) for p in ports)
+
+    print(f"{'PORT':<{pw}}  {'SERVICE':<{sw}}  VERSION")
+    print(f"{'-'*pw}  {'-'*sw}  {'-'*40}")
+    for port, service, version in ports:
+        print(f"{port:<{pw}}  {service:<{sw}}  {version}")
+        # Show interesting script output (http-title, smb-os, etc.)
+        for sline in scripts.get(port, []):
+            # Skip verbose/noisy lines
+            if any(x in sline for x in ['ssh-hostkey', 'AAAA', 'ecdsa-sha2']):
+                continue
+            # Skip SSH key lines: |   2048 xx:xx:xx (RSA) / |_  256 xx:xx:xx (ED25519)
+            if re.search(r'\|[_ ]\s+\d+\s+[0-9a-f:]{10,}', sline):
+                continue
+            print(f"{'':>{pw}}  {sline}")
+
+
+def run_searchsploit(ports):
+    if not ports:
+        return
+
+    seen_terms = set()
+    for port, service, version in ports:
+        if not version:
+            continue
+        # Build search term: product + first version number found
+        # "Apache httpd 2.4.18 ((Ubuntu))" -> "Apache httpd 2.4.18"
+        # "OpenSSH 7.2p2 Ubuntu 4ubuntu2.2" -> "OpenSSH 7.2p2"
+        # "Samba smbd 3.X - 4.X" -> "Samba 3"
+        # "Werkzeug/2.0.1 Python/3.8.10" -> "Werkzeug 2.0.1"
+        cleaned = re.sub(r'[()]', '', version)       # strip parens
+        cleaned = re.sub(r'/(\d)', r' \1', cleaned)  # Werkzeug/2.0 -> Werkzeug 2.0
+        parts = cleaned.split()
+
+        # Collect product words until we hit a version number
+        term_parts = []
+        for p in parts:
+            if re.match(r'^\d', p):
+                # version found — take major version
+                ver = re.match(r'[\d]+\.?[\w.]*', p)
+                if ver:
+                    term_parts.append(ver.group())
+                break
+            if p in ('-', 'httpd'):
+                continue  # skip noise
+            term_parts.append(p)
+
+        term = ' '.join(term_parts)
+        if not term or term in seen_terms:
+            continue
+        seen_terms.add(term)
+
+        print(f"\n[*] {term}")
+        try:
+            result = subprocess.run(
+                ['searchsploit', '--color', term],
+                capture_output=True, text=True, timeout=10
+            )
+            output = result.stdout.strip()
+            if output and 'No Results' not in output:
+                # Indent the table
+                for line in output.split('\n'):
+                    print(f"  {line}")
+            else:
+                print(f"  (rien)")
+        except FileNotFoundError:
+            print("  searchsploit non installé")
+            return
+        except subprocess.TimeoutExpired:
+            print("  (timeout)")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2 or sys.argv[1] in ('-h', '--help'):
+        print("Usage: nmap-parse <scan.txt> [--searchsploit]")
+        sys.exit(1)
+
+    path = sys.argv[1]
+    do_search = '--searchsploit' in sys.argv or '-s' in sys.argv
+
+    ports, scripts = parse_nmap(path)
+    print_table(ports, scripts)
+
+    if do_search:
+        print()
+        run_searchsploit(ports)

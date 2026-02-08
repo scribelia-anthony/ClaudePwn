@@ -68,7 +68,7 @@ Si le host est down, ARRÊTE-TOI et rapporte. Ne relance PAS avec -Pn.
 ### scan — Découverte
 | Commande | Actions | Outils |
 |----------|---------|--------|
-| **scan box** | Scan complet + recherche exploits | ${recon} → searchsploit (un appel séparé par service, JAMAIS plusieurs termes ensemble) |
+| **scan box** | Scan complet + recherche exploits | ${recon} → nmap-parse ${boxDir}/scans/nmap-detail.txt --searchsploit |
 | **scan ports** | Ports uniquement, rapide | ${HAS_RUSTSCAN ? `rustscan -a ${ip} --ulimit 5000` : `nmap -p- --min-rate 5000 --max-retries 2 -T4 ${ip}`} -oN ${boxDir}/scans/nmap-ports.txt |
 | **scan udp** | Top 200 ports UDP | nmap -sU --top-ports 200 --min-rate 1000 -oN ${boxDir}/scans/nmap-udp.txt ${ip} |
 | **scan vulns** | Scripts vulnérabilités | nmap --script vuln -p <ports connus> -oN ${boxDir}/scans/nmap-vulns.txt ${ip} |
@@ -119,7 +119,7 @@ Si le host est down, ARRÊTE-TOI et rapporte. Ne relance PAS avec -Pn.
 - Wordlist web : ${SECLISTS}/Discovery/Web-Content/directory-list-2.3-medium.txt
 - Wordlist passwords : ${SECLISTS}/Passwords/Leaked-Databases/rockyou.txt
 - Wordlist DNS : ${SECLISTS}/Discovery/DNS/subdomains-top1million-5000.txt
-- searchsploit : TOUJOURS un appel séparé par service (pas \`searchsploit "A" "B"\`)
+- searchsploit : TOUJOURS un appel séparé par service — ou mieux : \`nmap-parse <scan.txt> --searchsploit\` qui le fait automatiquement
 - ffuf : TOUJOURS avec -ac -ic — après le scan, analyse avec \`ffuf-parse <fichier.json>\`
 - Utilise le domaine ${domain} (pas l'IP) pour l'enum web
 - Impacket : psexec, smbexec, wmiexec, secretsdump, getTGT, getNPUsers
