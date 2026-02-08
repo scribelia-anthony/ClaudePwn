@@ -53,6 +53,32 @@ function stripAnsi(str: string): string {
   return str.replace(/\x1b\[[0-9;]*m/g, '');
 }
 
+/** Extract a short progress string for the status line, or null if not a progress line */
+function extractProgress(raw: string): string | null {
+  const line = stripAnsi(raw);
+
+  // ffuf: :: Progress: [1234/220546] :: Job [1/1] :: 852 req/sec :: Duration: [0:01:23] ::
+  const ffufMatch = line.match(/Progress:\s*\[(\d+)\/(\d+)\].*?(\d+)\s*req\/sec.*?Duration:\s*\[([^\]]+)\]/);
+  if (ffufMatch) {
+    const pct = Math.floor(parseInt(ffufMatch[1]) / parseInt(ffufMatch[2]) * 100);
+    return `ffuf ${pct}% — ${ffufMatch[3]} req/s — ${ffufMatch[4]}`;
+  }
+
+  // gobuster/feroxbuster: Progress: 1234 / 220546 (0.56%)
+  const gobusterMatch = line.match(/Progress:\s*(\d+)\s*\/\s*(\d+)\s*\(([^)]+)\)/);
+  if (gobusterMatch) {
+    return `gobuster ${gobusterMatch[3]}`;
+  }
+
+  // nmap: Stats: 0:00:30 elapsed; 0 hosts completed (1 up), 1 undergoing Connect Scan
+  const nmapMatch = line.match(/^Stats:\s*([\d:]+)\s*elapsed/);
+  if (nmapMatch) {
+    return `nmap ${nmapMatch[1]} elapsed`;
+  }
+
+  return null;
+}
+
 function isProgressLine(raw: string): boolean {
   const line = stripAnsi(raw);
   if (!line.trim()) return true;
@@ -146,30 +172,51 @@ export async function executeExec(
     let stdoutLineBuf = '';
     let stderrLineBuf = '';
 
+    /** Process a chunk: split lines, check progress for status, filter noise */
+    function processChunk(buf: { value: string }, chunk: string): void {
+      buf.value += chunk;
+      const lines = buf.value.split('\n');
+      buf.value = lines.pop()!;
+      for (let line of lines) {
+        // Handle \r (carriage return) — tools use it for progress overwrite
+        const crParts = line.split('\r');
+        for (const part of crParts) {
+          const clean = stripAnsi(part);
+          if (!clean.trim()) continue;
+          // Check for progress info → update status spinner
+          const progress = extractProgress(clean);
+          if (progress) {
+            setStatus(progress);
+            continue;
+          }
+          if (!isProgressLine(part)) log.toolOutput(clean);
+        }
+      }
+      // Also check the remaining buffer for \r-only progress (no newline yet)
+      if (buf.value.includes('\r')) {
+        const crParts = buf.value.split('\r');
+        buf.value = crParts.pop()!;
+        for (const part of crParts) {
+          const clean = stripAnsi(part);
+          const progress = extractProgress(clean);
+          if (progress) setStatus(progress);
+        }
+      }
+    }
+
+    const stdoutBuf = { value: '' };
+    const stderrBuf = { value: '' };
+
     proc.stdout.on('data', (data: Buffer) => {
       const text = data.toString();
       stdout += text;
-      stdoutLineBuf += text;
-      const lines = stdoutLineBuf.split('\n');
-      stdoutLineBuf = lines.pop()!;
-      for (let line of lines) {
-        const crIdx = line.lastIndexOf('\r');
-        if (crIdx !== -1) line = line.substring(crIdx + 1);
-        if (!isProgressLine(line)) log.toolOutput(stripAnsi(line));
-      }
+      processChunk(stdoutBuf, text);
     });
 
     proc.stderr.on('data', (data: Buffer) => {
       const text = data.toString();
       stderr += text;
-      stderrLineBuf += text;
-      const lines = stderrLineBuf.split('\n');
-      stderrLineBuf = lines.pop()!;
-      for (let line of lines) {
-        const crIdx = line.lastIndexOf('\r');
-        if (crIdx !== -1) line = line.substring(crIdx + 1);
-        if (!isProgressLine(line)) log.toolOutput(stripAnsi(line));
-      }
+      processChunk(stderrBuf, text);
     });
 
     proc.on('close', (code) => {
@@ -177,18 +224,14 @@ export async function executeExec(
       currentProc = null;
       setStatus(null);
 
-      // Flush remaining line buffers (with same filtering)
-      if (stdoutLineBuf) {
-        let line = stdoutLineBuf;
-        const crIdx = line.lastIndexOf('\r');
-        if (crIdx !== -1) line = line.substring(crIdx + 1);
-        if (!isProgressLine(line)) log.toolOutput(stripAnsi(line));
-      }
-      if (stderrLineBuf) {
-        let line = stderrLineBuf;
-        const crIdx = line.lastIndexOf('\r');
-        if (crIdx !== -1) line = line.substring(crIdx + 1);
-        if (!isProgressLine(line)) log.toolOutput(stripAnsi(line));
+      // Flush remaining buffers
+      for (const buf of [stdoutBuf, stderrBuf]) {
+        if (buf.value.trim()) {
+          const crIdx = buf.value.lastIndexOf('\r');
+          const line = crIdx !== -1 ? buf.value.substring(crIdx + 1) : buf.value;
+          const clean = stripAnsi(line);
+          if (clean.trim() && !isProgressLine(line)) log.toolOutput(clean);
+        }
       }
 
       const elapsed = formatElapsed(Date.now() - startTime);
