@@ -1,3 +1,5 @@
+<div align="center">
+
 # ClaudePwn
 
 ```
@@ -11,9 +13,19 @@
 
 **Framework de hacking autonome propulsé par Claude.**
 
+[![CI](https://github.com/scribelia-anthony/ClaudePwn/actions/workflows/ci.yml/badge.svg)](https://github.com/scribelia-anthony/ClaudePwn/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-green.svg)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](https://www.typescriptlang.org/)
+[![Claude Opus 4.6](https://img.shields.io/badge/LLM-Claude%20Opus%204.6-purple.svg)](https://anthropic.com)
+
+</div>
+
 Un CLI standalone qui utilise l'API Anthropic (Opus 4.6) pour enchaîner automatiquement reconnaissance, énumération, exploitation et post-exploitation sur des boxes HackTheBox / CTF.
 
 Tu lui dis `scan la box`, il lance nmap, searchsploit sur chaque service, ffuf si port 80, enum4linux si SMB, adapte les exploits et enchaîne tout seul.
+
+> **Disclaimer** : Cet outil est destiné **uniquement** aux environnements autorisés (CTF, labs). Voir [SECURITY.md](SECURITY.md).
 
 ---
 
@@ -225,6 +237,14 @@ L'agent sait utiliser automatiquement :
 - **CLI** : Commander.js
 - **Build** : tsup
 
+## Contribuer
+
+Les contributions sont les bienvenues ! Consulte [CONTRIBUTING.md](CONTRIBUTING.md) pour les guidelines.
+
+## Sécurité
+
+Usage responsable uniquement. Voir [SECURITY.md](SECURITY.md).
+
 ## License
 
-MIT
+[MIT](LICENSE)
